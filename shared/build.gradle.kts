@@ -7,25 +7,27 @@ plugins {
     kotlin("plugin.serialization") version "1.7.20"
 }
 
+repositories {
+    google()
+    mavenCentral()
+    maven {
+        setUrl("https://plugins.gradle.org/m2/")
+    }
+}
+
 sqldelight {
     database("CioDatabase") {
         packageName = "com.customerio.shared.local"
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "io.customer.android"
-            artifactId = "shared"
-            version = "1.0.0"
-        }
-    }
-}
-
+group = "io.customer.shared"
+version = "1.0"
 
 kotlin {
-    android()
+    android {
+        publishLibraryVariants("release", "debug")
+    }
     iosX64()
     iosArm64()
     iosSimulatorArm64()
