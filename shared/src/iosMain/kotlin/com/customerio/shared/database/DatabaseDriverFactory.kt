@@ -1,6 +1,6 @@
 package com.customerio.shared.database
 
-import com.customerio.shared.CioDatabase
+import com.customerio.shared.local.CioDatabase
 import com.squareup.sqldelight.db.SqlDriver
 import com.squareup.sqldelight.drivers.native.NativeSqliteDriver
 

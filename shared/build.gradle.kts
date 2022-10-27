@@ -3,6 +3,7 @@ plugins {
     kotlin("native.cocoapods")
     id("com.android.library")
     id("com.squareup.sqldelight")
+    id("maven-publish")
     kotlin("plugin.serialization") version "1.7.20"
 }
 
@@ -11,6 +12,17 @@ sqldelight {
         packageName = "com.customerio.shared.local"
     }
 }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "io.customer.android"
+            artifactId = "shared"
+            version = "1.0.0"
+        }
+    }
+}
+
 
 kotlin {
     android()
