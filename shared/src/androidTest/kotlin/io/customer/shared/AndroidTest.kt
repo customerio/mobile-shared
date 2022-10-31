@@ -3,7 +3,7 @@ package io.customer.shared
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class AndroidGreetingTest {
+class AndroidTest {
 
     @Test
     fun testExample() {

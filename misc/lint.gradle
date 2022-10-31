@@ -1,0 +1,21 @@
+subprojects {
+    apply plugin: "org.jlleitschuh.gradle.ktlint"
+
+    repositories {
+        // Required to download KtLint
+        mavenCentral()
+    }
+
+    ktlint {
+        version = "0.44.0"
+        disabledRules = [
+                "import-ordering",
+                "chain-wrapping",
+                "no-multi-spaces",
+                "no-blank-line-before-rbrace"
+        ]
+        filter {
+            exclude { it.file.path.contains("build/") }
+        }
+    }
+}

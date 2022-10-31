@@ -3,7 +3,7 @@ package io.customer.shared
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class IosGreetingTest {
+class IosTest {
 
     @Test
     fun testExample() {

@@ -6,6 +6,6 @@ import io.customer.shared.local.CioDatabase
 
 actual class DatabaseDriverFactory {
     actual fun createDriver(): SqlDriver {
-      return NativeSqliteDriver(CioDatabase.Schema, "customerio.db")
+        return NativeSqliteDriver(CioDatabase.Schema, "customerio.db")
     }
 }
