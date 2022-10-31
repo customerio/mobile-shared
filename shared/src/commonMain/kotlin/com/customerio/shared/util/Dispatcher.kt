@@ -1,9 +1,9 @@
 package com.customerio.shared.util
 
-import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 
 interface Dispatcher {
-    fun dispatcher(): CoroutineContext
+    fun dispatcher(): CoroutineDispatcher
 }
 
 internal expect fun applicationDispatcher(): Dispatcher

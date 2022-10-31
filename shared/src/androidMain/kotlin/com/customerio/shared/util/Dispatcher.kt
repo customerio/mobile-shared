@@ -1,10 +1,10 @@
 package com.customerio.shared.util
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlin.coroutines.CoroutineContext
 
 class AndroidDispatcher : Dispatcher {
-    override fun dispatcher(): CoroutineContext = Dispatchers.IO
+    override fun dispatcher(): CoroutineDispatcher = Dispatchers.IO
 }
 
 actual fun applicationDispatcher(): Dispatcher = AndroidDispatcher()
