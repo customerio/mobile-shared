@@ -17,7 +17,7 @@ repositories {
 
 sqldelight {
     database("CioDatabase") {
-        packageName = "com.customerio.shared.local"
+        packageName = "io.customer.shared.local"
     }
 }
 
@@ -96,7 +96,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.customerio.shared"
+    namespace = "io.customer.shared"
     compileSdk = 32
     defaultConfig {
         minSdk = 21
