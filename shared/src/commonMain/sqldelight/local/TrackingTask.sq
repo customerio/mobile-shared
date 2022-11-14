@@ -2,7 +2,7 @@ import io.customer.shared.tracking.api.model.TrackingErrorReason;
 import io.customer.shared.tracking.constant.QueueTaskStatus;
 import kotlinx.datetime.Instant;
 
-CREATE TABLE trackingTask (
+CREATE TABLE IF NOT EXISTS trackingTask (
   identifier TEXT NOT NULL,
   siteId TEXT NOT NULL,
   type TEXT NOT NULL,
