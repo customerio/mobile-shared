@@ -5,6 +5,7 @@ plugins {
     id("com.squareup.sqldelight")
     id("maven-publish")
     kotlin("plugin.serialization") version "1.7.20"
+    id("co.touchlab.faktory.kmmbridge") version "0.3.2"
 }
 
 repositories {
@@ -13,6 +14,13 @@ repositories {
     maven {
         setUrl("https://plugins.gradle.org/m2/")
     }
+}
+
+kmmbridge {
+    githubReleaseArtifacts()
+    githubReleaseVersions()
+    spm()
+    versionPrefix.set("0.1")
 }
 
 sqldelight {
@@ -92,6 +100,19 @@ kotlin {
             iosArm64Test.dependsOn(this)
             iosSimulatorArm64Test.dependsOn(this)
         }
+
+        all {
+            languageSettings.optIn(annotationName = "io.customer.shared.internal.InternalCustomerIOApi")
+        }
+
+        targets.filterIsInstance<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>()
+            .forEach {
+                it.binaries.filterIsInstance<org.jetbrains.kotlin.gradle.plugin.mpp.Framework>()
+                    .forEach { lib ->
+                        lib.isStatic = false
+                        lib.linkerOpts.add("-lsqlite3")
+                    }
+            }
     }
 }
 
