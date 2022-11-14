@@ -1,7 +1,12 @@
 package io.customer.shared
 
-class AndroidPlatform : Platform {
+import android.content.Context
+
+/**
+ * Android platform class to hold Android specific properties e.g. [Context], etc.
+ */
+class AndroidPlatform(
+    val applicationContext: Context,
+) : Platform {
     override val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
 }
-
-actual fun getPlatform(): Platform = AndroidPlatform()

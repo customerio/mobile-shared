@@ -94,6 +94,9 @@ kotlin {
             iosArm64Test.dependsOn(this)
             iosSimulatorArm64Test.dependsOn(this)
         }
+        all {
+            languageSettings.optIn(annotationName = "io.customer.shared.internal.InternalCustomerIOApi")
+        }
     }
 }
 
