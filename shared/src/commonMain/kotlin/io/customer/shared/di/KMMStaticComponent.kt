@@ -3,6 +3,8 @@ package io.customer.shared.di
 import io.customer.shared.sdk.config.BuildConfigurations
 import io.customer.shared.sdk.config.getBuildConfigurations
 import io.customer.shared.util.*
+import io.customer.shared.work.WorkDispatcher
+import io.customer.shared.work.WorkDispatcherImpl
 
 /**
  * Static component dependency graph to satisfy independent dependencies from single place. All
@@ -28,6 +30,17 @@ class KMMStaticComponent : DIGraph() {
     internal val dispatcher: Dispatcher
         get() = getNewInstance { KMMDispatcher() }
 
+    internal val jsonAdapter: JsonAdapter
+        get() = getNewInstance { JsonAdapterImpl() }
+
     val logger: Logger
         get() = getSingletonInstance { ConsoleLogger(buildConfigurations = buildConfigurations) }
+
+    val workDispatcher: WorkDispatcher
+        get() = getSingletonInstance {
+            WorkDispatcherImpl(
+                logger = logger,
+                dispatcher = dispatcher,
+            )
+        }
 }

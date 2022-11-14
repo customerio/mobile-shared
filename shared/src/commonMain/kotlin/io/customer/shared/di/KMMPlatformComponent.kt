@@ -2,6 +2,7 @@ package io.customer.shared.di
 
 import io.customer.shared.Platform
 import io.customer.shared.database.DatabaseDriverFactory
+import io.customer.shared.database.DatabaseHelper
 import io.customer.shared.database.getDatabaseDriverFactory
 
 /**
@@ -21,4 +22,7 @@ internal class KMMPlatformComponent(
 ) : DIGraph() {
     private val databaseDriverFactory: DatabaseDriverFactory
         get() = getSingletonInstance { getDatabaseDriverFactory(platform = platform) }
+
+    internal val databaseHelper: DatabaseHelper
+        get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
 }

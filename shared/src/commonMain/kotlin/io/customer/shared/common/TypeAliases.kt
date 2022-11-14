@@ -1,6 +1,7 @@
 package io.customer.shared.common
 
 typealias CustomAttributesCompat = Map<String, Any>
+typealias QueueTaskResult = Boolean
 
 /**
  * Code below this line is a temporary work around for the issue raised by Kotlin serialization.

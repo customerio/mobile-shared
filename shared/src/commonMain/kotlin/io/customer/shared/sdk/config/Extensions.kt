@@ -39,3 +39,11 @@ internal val CustomerIOConfig.trackingApiHostname: String
         // return network.trackingApiUrl ?: workspace.region.trackingURL
         return "https://track-v2.devzilla.customerio.dev/"
     }
+
+internal val CustomerIOConfig.basicAuthHeaderSting: String
+    get() {
+        val apiKey = workspace.apiKey
+        val siteId = workspace.siteId
+        val rawHeader = "$siteId:$apiKey"
+        return "Basic ${rawHeader.encodeBase64()}"
+    }
