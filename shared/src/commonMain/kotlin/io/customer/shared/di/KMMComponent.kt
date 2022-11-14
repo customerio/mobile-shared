@@ -41,6 +41,14 @@ class KMMComponent(
         staticComponent = staticComponent,
         platform = platform,
     )
+
+    constructor(platform: Platform, sdkConfig: CustomerIOConfig, sdkCallback: SDKCallback) : this(
+        staticComponent = KMMStaticComponent(),
+        platform = platform,
+        sdkConfig = sdkConfig,
+        sdkCallback = sdkCallback,
+    )
+
     val backgroundQueue: BackgroundQueue
         get() = getSingletonInstance {
             BackgroundQueueImpl(
