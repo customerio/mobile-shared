@@ -12,32 +12,12 @@ sealed class Client(
 ) {
     override fun toString(): String = "$source Client/$sdkVersion"
 
-    /**
-     * Simpler class for Android clients.
-     */
     class Android(sdkVersion: String) : Client(source = SOURCE_ANDROID, sdkVersion = sdkVersion)
-
-    /**
-     * Simpler class for iOS clients.
-     */
     class IOS(sdkVersion: String) : Client(source = SOURCE_IOS, sdkVersion = sdkVersion)
-
-    /**
-     * Simpler class for ReactNative clients.
-     */
     class ReactNative(sdkVersion: String) : Client(
-        source = SOURCE_REACT_NATIVE,
-        sdkVersion = sdkVersion
-    )
+        source = SOURCE_REACT_NATIVE, sdkVersion = sdkVersion)
 
-    /**
-     * Simpler class for Expo clients.
-     */
     class Expo(sdkVersion: String) : Client(source = SOURCE_EXPO, sdkVersion = sdkVersion)
-
-    /**
-     * Simpler class for Flutter clients.
-     */
     class Flutter(sdkVersion: String) : Client(source = SOURCE_FLUTTER, sdkVersion = sdkVersion)
 
     /**
