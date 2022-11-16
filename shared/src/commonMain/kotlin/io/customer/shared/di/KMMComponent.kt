@@ -1,6 +1,8 @@
 package io.customer.shared.di
 
 import io.customer.shared.Platform
+import io.customer.shared.database.DatabaseDriverFactory
+import io.customer.shared.database.getDatabaseDriverFactory
 import io.customer.shared.sdk.config.CustomerIOConfig
 
 /**
@@ -19,8 +21,10 @@ class KMMComponent(
     val platform: Platform,
     val sdkConfig: CustomerIOConfig,
 ) : DIGraph() {
-    private val platformComponent: KMMPlatformComponent = KMMPlatformComponent(
-        staticComponent = staticComponent,
-        platform = platform,
-    )
+    init {
+        staticComponent.attachSDKConfig(config = sdkConfig)
+    }
+
+    private val databaseDriverFactory: DatabaseDriverFactory
+        get() = getSingletonInstance { getDatabaseDriverFactory(platform = platform) }
 }

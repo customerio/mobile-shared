@@ -1,7 +1,6 @@
 package io.customer.shared.di
 
-import io.customer.shared.sdk.config.BuildConfigurations
-import io.customer.shared.sdk.config.getBuildConfigurations
+import io.customer.shared.sdk.config.CustomerIOConfig
 import io.customer.shared.util.*
 
 /**
@@ -10,8 +9,7 @@ import io.customer.shared.util.*
  * structure of DIGraphs would something like:
  *
  * -> StaticGraph (Independent)
- * --> PlatformGraph (Depends on StaticGraph and Platform)
- * ---> WorkspaceGraph (Depends on StaticGraph, PlatformGraph)
+ * --> WorkspaceGraph (Depends on StaticGraph, Platform and SDK Configurations)
  *
  * The class should only contain dependencies matching the following criteria:
  * - dependencies that may be required without SDK initialization.
@@ -19,9 +17,6 @@ import io.customer.shared.util.*
  */
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 class KMMStaticComponent : DIGraph() {
-    val buildConfigurations: BuildConfigurations
-        get() = getNewInstance { getBuildConfigurations() }
-
     internal val dateTimeUtil: DateTimeUtil
         get() = getNewInstance { DateTimeUtilImpl() }
 
@@ -29,5 +24,13 @@ class KMMStaticComponent : DIGraph() {
         get() = getNewInstance { KMMDispatcher() }
 
     val logger: Logger
-        get() = getSingletonInstance { ConsoleLogger(buildConfigurations = buildConfigurations) }
+        get() = getSingletonInstance { ConsoleLogger() }
+}
+
+/**
+ * Updates static component instances to apply changes from user configurations. This method can
+ * be called multiple times with changes from last call being reflected.
+ */
+internal fun KMMStaticComponent.attachSDKConfig(config: CustomerIOConfig) {
+    logger.logLevel = config.logLevel
 }

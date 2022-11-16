@@ -104,6 +104,10 @@ kotlin {
         }
 
         all {
+            // Removes warning from all (common, android and ios) modules when using internal Customer.IO
+            // apis that are made public to share between modules, but, are intended to be used by
+            // Customer.IO SDKs only.
+            // See [InternalCustomerIOApi] for more details.
             languageSettings.optIn(annotationName = "io.customer.shared.internal.InternalCustomerIOApi")
         }
 

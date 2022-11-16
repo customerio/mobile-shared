@@ -1,6 +1,16 @@
 package io.customer.shared.util
 
 import android.util.Log
+import io.customer.shared.BuildConfig
+import io.customer.shared.sdk.config.CustomerIOConfig
+
+/**
+ * Android platform starts with debug logs for dev environments; fallbacks to default value for
+ * release builds.
+ */
+internal actual val logLevelDefault: LogLevel
+    get() = if (BuildConfig.DEBUG) LogLevel.DEBUG
+    else CustomerIOConfig.DefaultValue.LOG_LEVEL
 
 /**
  * Android specific log helper for printing messages to Logcat.

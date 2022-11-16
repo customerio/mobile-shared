@@ -1,5 +1,7 @@
 package io.customer.shared
 
-interface Platform {
+interface NativePlatform {
     val name: String
 }
+
+expect class Platform : NativePlatform

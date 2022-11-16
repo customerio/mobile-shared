@@ -7,6 +7,8 @@ import android.content.Context
  */
 class AndroidPlatform(
     val applicationContext: Context,
-) : Platform {
+) : NativePlatform {
     override val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
 }
+
+actual typealias Platform = AndroidPlatform
