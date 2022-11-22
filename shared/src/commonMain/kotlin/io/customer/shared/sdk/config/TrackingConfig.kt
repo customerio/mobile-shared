@@ -16,14 +16,14 @@ class TrackingConfig private constructor(
         /**
          * Indicates whether screens views should be tracked automatically or not
          */
-        fun setAutoTrackScreenViews(autoTrackScreenViews: Boolean) {
+        fun setAutoTrackScreenViews(autoTrackScreenViews: Boolean) = this.apply {
             this.autoTrackScreenViews = autoTrackScreenViews
         }
 
         /**
          * Indicates whether device attributes should be tracked automatically or not
          */
-        fun setAutoTrackDeviceAttributes(autoTrackDeviceAttributes: Boolean) {
+        fun setAutoTrackDeviceAttributes(autoTrackDeviceAttributes: Boolean) = this.apply {
             this.autoTrackDeviceAttributes = autoTrackDeviceAttributes
         }
 
@@ -39,7 +39,8 @@ class TrackingConfig private constructor(
     }
 
     /**
-     * Constant class to hold default values.
+     * Default values make it easier to reuse when providing fallback values in wrapper SDKs or
+     * auto initializing the SDK.
      */
     internal object DefaultValue {
         const val AUTO_TRACK_SCREEN_VIEWS = true

@@ -1,6 +1,5 @@
 package io.customer.shared.sdk.config
 
-import io.customer.shared.sdk.meta.Region
 import io.ktor.util.*
 
 /**
@@ -27,15 +26,3 @@ fun <C : ModuleConfig> CustomerIOConfig.getModuleConfig(key: String, defaultValu
  */
 internal val CustomerIOConfig.trackingConfig: TrackingConfig
     get() = getModuleConfig(key = TrackingConfig.NAME) { TrackingConfig.default() }
-
-/**
- * Extension method to get tracking api URL conveniently.
- *
- * Returns trackingApiUrl provided in config; fallbacks to tracking url from [Region].
- */
-internal val CustomerIOConfig.trackingApiHostname: String
-    get() {
-        // TODO: Fix this when we move out of devbox testing
-        // return network.trackingApiUrl ?: workspace.region.trackingURL
-        return "https://track-v2.devzilla.customerio.dev/"
-    }

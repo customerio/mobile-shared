@@ -6,22 +6,48 @@ import io.customer.shared.util.LogLevel
 /**
  * Config class to hold SDK configurations in a single place.
  *
- * @property logLevel the level of logs to print.
+ * @property sdkLogLevel the level of logs to print.
  * @property workspace configurations required to setup the workspace.
  * @property network configurations to hold network settings.
  * @property backgroundQueue configurations to hold background queue settings.
- * @property moduleConfig map to hold module configurations, having a map it makes it easier to
- * attach them later.
  */
-data class CustomerIOConfig(
-    val logLevel: LogLevel = DefaultValue.LOG_LEVEL,
+data class CustomerIOConfig constructor(
+    val sdkLogLevel: LogLevel = DefaultValue.LOG_LEVEL,
     val workspace: Workspace,
-    val network: NetworkConfig = NetworkConfig.default(),
     val backgroundQueue: BackgroundQueueConfig = BackgroundQueueConfig.default(),
-    internal val moduleConfig: MutableMap<String, ModuleConfig> = mutableMapOf(),
+    val network: NetworkConfig = NetworkConfig.default(),
 ) {
+    constructor(workspace: Workspace) : this(
+        sdkLogLevel = DefaultValue.LOG_LEVEL,
+        workspace = workspace,
+    )
+
+    constructor(workspace: Workspace, backgroundQueue: BackgroundQueueConfig) : this(
+        sdkLogLevel = DefaultValue.LOG_LEVEL,
+        workspace = workspace,
+        backgroundQueue = backgroundQueue,
+    )
+
+    constructor(
+        workspace: Workspace,
+        backgroundQueue: BackgroundQueueConfig,
+        network: NetworkConfig,
+    ) : this(
+        sdkLogLevel = DefaultValue.LOG_LEVEL,
+        workspace = workspace,
+        backgroundQueue = backgroundQueue,
+        network = network,
+    )
+
     /**
-     * Constant class to hold default values.
+     * Configurations map to hold module level configurations, having a map it makes it easier to
+     * attach them later.
+     */
+    internal val moduleConfig: MutableMap<String, ModuleConfig> = mutableMapOf()
+
+    /**
+     * Default values make it easier to reuse when providing fallback values in wrapper SDKs or
+     * auto initializing the SDK.
      */
     internal object DefaultValue {
         val LOG_LEVEL = LogLevel.ERROR

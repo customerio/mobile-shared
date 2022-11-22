@@ -9,10 +9,13 @@ import kotlinx.serialization.SerialName
 enum class MetricEvent {
     @SerialName("delivered")
     DELIVERED,
+
     @SerialName("opened")
     OPENED,
+
     @SerialName("converted")
     CONVERTED,
+
     @SerialName("clicked")
     CLICKED,
 }

@@ -17,7 +17,7 @@ class NetworkConfig private constructor(
          * The request timeout used when calling Customer.io API. Modifying this value may not be
          * required most often as the default value works ideal in most cases.
          */
-        fun setRequestTimeoutMillis(requestTimeoutMillis: Long) {
+        fun setRequestTimeoutMillis(requestTimeoutMillis: Long) = this.apply {
             this.requestTimeoutMillis = requestTimeoutMillis
         }
 
@@ -25,7 +25,7 @@ class NetworkConfig private constructor(
          * Base URL to use for the Customer.io track API. You will more then likely not modify this value.
          * If you override this value, [Region] set when initializing the SDK will be ignored.
          */
-        fun setTrackingApiUrl(trackingApiUrl: String) {
+        fun setTrackingApiUrl(trackingApiUrl: String) = this.apply {
             this.trackingApiUrl = trackingApiUrl
         }
 
@@ -40,7 +40,8 @@ class NetworkConfig private constructor(
     }
 
     /**
-     * Constant class to hold default values.
+     * Default values make it easier to reuse when providing fallback values in wrapper SDKs or
+     * auto initializing the SDK.
      */
     internal object DefaultValue {
         const val API_REQUEST_TIMEOUT = 30_000L

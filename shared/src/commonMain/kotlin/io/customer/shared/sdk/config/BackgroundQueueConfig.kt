@@ -18,7 +18,7 @@ class BackgroundQueueConfig private constructor(
          * This is mostly used during development to test configuration is setup. We do not recommend
          * modifying this value because it impacts battery life of mobile device.
          */
-        fun setBatchDelayMinTasks(batchDelayMinTasks: Int) {
+        fun setBatchDelayMinTasks(batchDelayMinTasks: Int) = this.apply {
             this.batchDelayMinTasks = batchDelayMinTasks
         }
 
@@ -26,7 +26,7 @@ class BackgroundQueueConfig private constructor(
          * The number of seconds to delay running queue after a task has been added to it.
          * We do not recommend modifying this value because it impacts battery life of mobile device.
          */
-        fun setBatchDelayMaxDelayInSeconds(batchDelayMaxDelayInSeconds: Int) {
+        fun setBatchDelayMaxDelayInSeconds(batchDelayMaxDelayInSeconds: Int) = this.apply {
             this.batchDelayMaxDelayInSeconds = batchDelayMaxDelayInSeconds
         }
 
@@ -35,7 +35,7 @@ class BackgroundQueueConfig private constructor(
          * This can result in slowing down the tracking API call. We do not recommend
          * modifying this value because the default value used works with out APIs.
          */
-        fun setBatchTasksMax(batchTasksMax: Int) {
+        fun setBatchTasksMax(batchTasksMax: Int) = this.apply {
             this.batchTasksMax = batchTasksMax
         }
 
@@ -51,7 +51,8 @@ class BackgroundQueueConfig private constructor(
     }
 
     /**
-     * Constant class to hold default values.
+     * Default values make it easier to reuse when providing fallback values in wrapper SDKs or
+     * auto initializing the SDK.
      */
     internal object DefaultValue {
         const val BATCH_THRESHOLD = 5
