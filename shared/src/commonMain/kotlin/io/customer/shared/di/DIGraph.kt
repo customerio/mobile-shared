@@ -96,6 +96,7 @@ abstract class DIGraph {
     fun <DEP : Any> KClass<DEP>.getClassNameOrThrow(value: DEP? = null): String {
         val valueClass = { if (value == null) null else value::class }
         return simpleName ?: valueClass()?.simpleName ?: throw RuntimeException(
-            "Cannot obtain class name for $valueClass")
+            "Cannot obtain class name for $valueClass",
+        )
     }
 }
