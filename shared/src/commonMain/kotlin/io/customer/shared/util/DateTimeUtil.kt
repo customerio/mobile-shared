@@ -7,6 +7,9 @@ internal interface DateTimeUtil {
     val now: Instant
     val nowUnixTimestamp: Long
 
+    /**
+     * Returns unix timestamp in milliseconds.
+     */
     fun toUnixTimestamp(time: Instant): Long
 }
 

@@ -1,9 +1,8 @@
 package io.customer.shared.di
 
-import io.customer.shared.Platform
 import io.customer.shared.database.DatabaseDriverFactory
+import io.customer.shared.database.DatabaseHelper
 import io.customer.shared.database.getDatabaseDriverFactory
-import io.customer.shared.sdk.config.CustomerIOConfig
 
 /**
  * Workspace component dependency graph to satisfy workspace based dependencies from single place.
@@ -18,13 +17,21 @@ import io.customer.shared.sdk.config.CustomerIOConfig
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 class KMMComponent(
     private val staticComponent: KMMStaticComponent = KMMStaticComponent(),
-    val platform: Platform,
-    val sdkConfig: CustomerIOConfig,
+    val sdkComponent: SDKComponent,
 ) : DIGraph() {
+    constructor(sdkComponent: SDKComponent) : this(
+        staticComponent = KMMStaticComponent(),
+        sdkComponent = sdkComponent,
+    )
+
     init {
-        staticComponent.attachSDKConfig(config = sdkConfig)
+        staticComponent.attachSDKConfig(config = sdkComponent.customerIOConfig)
     }
 
     private val databaseDriverFactory: DatabaseDriverFactory
-        get() = getSingletonInstance { getDatabaseDriverFactory(platform = platform) }
+        get() = getSingletonInstance { getDatabaseDriverFactory(platform = sdkComponent.platform) }
+
+    private val databaseHelper: DatabaseHelper
+        get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
+
 }

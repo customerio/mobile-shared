@@ -29,7 +29,6 @@ expect fun writeLogMessage(logLevel: LogLevel, tag: String, message: String)
  * Default basic [Logger] implementation to route logs to native loggers conveniently.
  */
 internal class ConsoleLogger : Logger {
-    // By default starts with debug logs for dev environments; fallbacks to default value for release builds
     override var logLevel: LogLevel = logLevelDefault
 
     override fun fatal(message: String) = writeLogMessage(LogLevel.FATAL, message)

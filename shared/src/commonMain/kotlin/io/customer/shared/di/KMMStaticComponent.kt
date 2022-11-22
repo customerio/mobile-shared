@@ -18,10 +18,10 @@ import io.customer.shared.util.*
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 class KMMStaticComponent : DIGraph() {
     internal val dateTimeUtil: DateTimeUtil
-        get() = getNewInstance { DateTimeUtilImpl() }
+        get() = getSingletonInstance { DateTimeUtilImpl() }
 
     internal val dispatcher: Dispatcher
-        get() = getNewInstance { KMMDispatcher() }
+        get() = getSingletonInstance { KMMDispatcher() }
 
     val logger: Logger
         get() = getSingletonInstance { ConsoleLogger() }
@@ -32,5 +32,5 @@ class KMMStaticComponent : DIGraph() {
  * be called multiple times with changes from last call being reflected.
  */
 internal fun KMMStaticComponent.attachSDKConfig(config: CustomerIOConfig) {
-    logger.logLevel = config.logLevel
+    logger.logLevel = config.sdkLogLevel
 }
