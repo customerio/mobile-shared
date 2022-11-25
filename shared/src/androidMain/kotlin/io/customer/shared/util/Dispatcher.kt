@@ -4,7 +4,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 class AndroidDispatcher : Dispatcher {
-    override fun dispatcher(): CoroutineDispatcher = Dispatchers.IO
+    override fun background(): CoroutineDispatcher = Dispatchers.IO
+    override fun main(): CoroutineDispatcher = Dispatchers.Main
 }
 
-actual fun applicationDispatcher(): Dispatcher = AndroidDispatcher()
+internal actual fun applicationDispatcher(): Dispatcher = AndroidDispatcher()
