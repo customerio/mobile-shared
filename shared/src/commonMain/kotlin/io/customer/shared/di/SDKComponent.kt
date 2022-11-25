@@ -1,6 +1,7 @@
 package io.customer.shared.di
 
 import io.customer.shared.Platform
+import io.customer.shared.device.UserAgentStore
 import io.customer.shared.sdk.config.CustomerIOConfig
 
 /**
@@ -10,4 +11,5 @@ import io.customer.shared.sdk.config.CustomerIOConfig
 interface SDKComponent {
     val platform: Platform
     val customerIOConfig: CustomerIOConfig
+    val userAgentStore: UserAgentStore
 }

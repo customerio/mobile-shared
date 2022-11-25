@@ -2,6 +2,8 @@ package io.customer.shared.di
 
 import io.customer.shared.sdk.config.CustomerIOConfig
 import io.customer.shared.util.*
+import io.customer.shared.work.CoroutineExecutor
+import io.customer.shared.work.CoroutineExecutorImpl
 
 /**
  * Static component dependency graph to satisfy independent dependencies from single place. All
@@ -23,8 +25,19 @@ class KMMStaticComponent : DIGraph() {
     internal val dispatcher: Dispatcher
         get() = getSingletonInstance { KMMDispatcher() }
 
+    internal val jsonAdapter: JsonAdapter
+        get() = getSingletonInstance { JsonAdapterImpl() }
+
     val logger: Logger
         get() = getSingletonInstance { ConsoleLogger() }
+
+    internal val coroutineExecutor: CoroutineExecutor
+        get() = getNewInstance {
+            CoroutineExecutorImpl(
+                logger = logger,
+                dispatcher = dispatcher,
+            )
+        }
 }
 
 /**

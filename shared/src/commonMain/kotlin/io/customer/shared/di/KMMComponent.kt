@@ -1,8 +1,19 @@
 package io.customer.shared.di
 
-import io.customer.shared.database.DatabaseDriverFactory
-import io.customer.shared.database.DatabaseHelper
-import io.customer.shared.database.getDatabaseDriverFactory
+import io.customer.shared.database.*
+import io.customer.shared.tracking.api.HttpClientBuilder
+import io.customer.shared.tracking.api.HttpClientBuilderImpl
+import io.customer.shared.tracking.api.TrackingHttpClient
+import io.customer.shared.tracking.api.TrackingHttpClientImpl
+import io.customer.shared.tracking.queue.BackgroundQueue
+import io.customer.shared.tracking.queue.BackgroundQueueImpl
+import io.customer.shared.tracking.queue.QueueWorker
+import io.customer.shared.tracking.queue.QueueWorkerImpl
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
 
 /**
  * Workspace component dependency graph to satisfy workspace based dependencies from single place.
@@ -28,10 +39,87 @@ class KMMComponent(
         staticComponent.attachSDKConfig(config = sdkComponent.customerIOConfig)
     }
 
+    val backgroundQueue: BackgroundQueue
+        get() = getSingletonInstance {
+            BackgroundQueueImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                platform = sdkComponent.platform,
+                queryHelper = queryHelper,
+                queueWorker = queueWorker,
+            )
+        }
+
     private val databaseDriverFactory: DatabaseDriverFactory
         get() = getSingletonInstance { getDatabaseDriverFactory(platform = sdkComponent.platform) }
 
     private val databaseHelper: DatabaseHelper
         get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
 
+    internal val queryHelper: QueryHelper
+        get() = getSingletonInstance {
+            QueryHelperImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                jsonAdapter = staticComponent.jsonAdapter,
+                executor = staticComponent.coroutineExecutor,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
+                trackingTaskQueries = databaseHelper.trackingTaskQueries,
+            )
+        }
+
+    internal val queueWorker: QueueWorker
+        get() = getSingletonInstance {
+            QueueWorkerImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                jsonAdapter = staticComponent.jsonAdapter,
+                executor = staticComponent.coroutineExecutor,
+                backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
+                queryHelper = queryHelper,
+                trackingHttpClient = trackingHttpClient,
+            )
+        }
+
+    internal val trackingHttpClient: TrackingHttpClient
+        get() = getSingletonInstance {
+            TrackingHttpClientImpl(
+                logger = staticComponent.logger,
+                httpClient = httpClient,
+            )
+        }
+
+    private val httpClientBuilder: HttpClientBuilder
+        get() = getNewInstance {
+            HttpClientBuilderImpl(
+                logger = staticComponent.logger,
+                sdkLogLevel = sdkComponent.customerIOConfig.sdkLogLevel,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                networkConfig = sdkComponent.customerIOConfig.network,
+                userAgentStore = sdkComponent.userAgentStore,
+            )
+        }
+
+    private val httpClient: HttpClient
+        get() = getNewInstance {
+            val requestBuilder = httpClientBuilder
+            return@getNewInstance HttpClient {
+                install(Logging) {
+                    logger = requestBuilder.clientLogger
+                    level = requestBuilder.clientLogLevel
+                }
+                install(ContentNegotiation) {
+                    staticComponent.jsonAdapter.configureKtorJson(configuration = this)
+                }
+                defaultRequest {
+                    url(urlString = requestBuilder.baseURL)
+                    requestBuilder.headers.forEach { (key, value) -> header(key, value) }
+                }
+                install(HttpTimeout) {
+                    requestTimeoutMillis = requestBuilder.requestTimeoutMillis
+                }
+            }
+        }
 }
