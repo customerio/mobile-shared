@@ -12,7 +12,8 @@ subprojects {
                 "import-ordering",
                 "chain-wrapping",
                 "no-multi-spaces",
-                "no-blank-line-before-rbrace"
+                "no-blank-line-before-rbrace",
+                "no-wildcard-imports"
         ]
         filter {
             exclude { it.file.path.contains("build/") }

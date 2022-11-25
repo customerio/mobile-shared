@@ -15,7 +15,8 @@ sealed class Client(
     class Android(sdkVersion: String) : Client(source = SOURCE_ANDROID, sdkVersion = sdkVersion)
     class IOS(sdkVersion: String) : Client(source = SOURCE_IOS, sdkVersion = sdkVersion)
     class ReactNative(sdkVersion: String) : Client(
-        source = SOURCE_REACT_NATIVE, sdkVersion = sdkVersion)
+        source = SOURCE_REACT_NATIVE, sdkVersion = sdkVersion
+    )
 
     class Expo(sdkVersion: String) : Client(source = SOURCE_EXPO, sdkVersion = sdkVersion)
     class Flutter(sdkVersion: String) : Client(source = SOURCE_FLUTTER, sdkVersion = sdkVersion)
