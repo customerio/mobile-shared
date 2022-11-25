@@ -59,30 +59,30 @@ internal class QueryHelperImpl(
         siteId = workspace.siteId,
     )
 
-    @Throws(Exception::class)
     @WithinTransaction
-    private fun Task.mergeWithSimilarPending(): Activity {
-        if (!activity.isUnique()) return activity
+    private fun Task.getDuplicateOrNull(): TrackingTask? = kotlin.runCatching {
+        return@runCatching if (activity.isUnique()) {
+            trackingTaskQueries.selectByType(
+                type = activity.type,
+                siteId = workspace.siteId,
+            ).executeAsOneOrNull()
+        } else null
+    }.getOrNull()
 
-        val newActivity = activity
-        val oldActivityTask = trackingTaskQueries.selectByType(
-            type = newActivity.type,
-            siteId = workspace.siteId,
-        ).executeAsOneOrNull()
-
+    @WithinTransaction
+    private fun TrackingTask.mergeActivities(activity: Activity): Pair<String, Activity> {
         var mergedActivity: Activity? = null
-        if (oldActivityTask != null && oldActivityTask.queueTaskStatus != QueueTaskStatus.SENT) {
-            val result = kotlin.runCatching {
-                newActivity.merge(other = jsonAdapter.parseToActivity(oldActivityTask.activityJson))
-            }
-            result.fold(
+        if (queueTaskStatus != QueueTaskStatus.SENT) {
+            kotlin.runCatching {
+                activity.merge(other = jsonAdapter.parseToActivity(activityJson))
+            }.fold(
                 onSuccess = { value -> mergedActivity = value },
                 onFailure = { ex ->
-                    logger.fatal("Failed to parse activity ${oldActivityTask.type}, model version ${oldActivityTask.activityModelVersion}. Reason: ${ex.message}")
+                    logger.fatal("Failed to parse activity ${type}, model version ${activityModelVersion}. Reason: ${ex.message}")
                 },
             )
         }
-        return mergedActivity ?: newActivity
+        return mergedActivity?.let { act -> uuid to act } ?: (generateRandomUUID() to activity)
     }
 
     @WithinTransaction
@@ -90,7 +90,7 @@ internal class QueryHelperImpl(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
     ): QueueTaskResult {
-        val taskIds = tasks.map { task -> task.id }
+        val taskIds = tasks.map { task -> task.uuid }
         val result = kotlin.runCatching {
             trackingTaskQueries.updateTasksStatus(
                 updatedAt = dateTimeUtil.now,
@@ -111,20 +111,23 @@ internal class QueryHelperImpl(
         return trackingTaskQueries.transactionWithResult(noEnclosing = false) { block() }
     }
 
-    private fun <Result : Any> runInTransactionAsync(
+    private fun <Result : Any?> runInTransactionAsync(
         block: TransactionWithReturn<Result>.() -> Result,
     ) = runSuspended { runInTransaction(block = block) }
 
     @MainDispatcher
     override fun insertTask(task: Task, listener: TaskResultListener<QueueTaskResult>?) {
-        runInTransactionAsync {
-            val activity = task.mergeWithSimilarPending()
+        runInTransactionAsync<Unit> {
             val result = kotlin.runCatching {
+                val (uuid, activity) = task.getDuplicateOrNull()?.mergeActivities(
+                    activity = task.activity,
+                ) ?: (generateRandomUUID() to task.activity)
+
                 val currentTime = dateTimeUtil.now
                 val json = jsonAdapter.parseToString(activity = activity)
 
-                trackingTaskQueries.insertOrReplaceTasks(
-                    id = activity.generateUniqueID(),
+                trackingTaskQueries.insertOrReplaceTask(
+                    uuid = uuid,
                     siteId = workspace.siteId,
                     type = activity.type,
                     createdAt = currentTime,
@@ -155,7 +158,7 @@ internal class QueryHelperImpl(
                     runSuspended { listener?.success() }
                 },
                 onFailure = { ex ->
-                    logger.error("Unable to add $activity to queue, skipping task. Reason: ${ex.message}")
+                    logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
                     runSuspended { listener?.failure(exception = ex) }
                 },
             )
@@ -205,7 +208,7 @@ internal class QueryHelperImpl(
 
     @MainDispatcher
     override fun clearAllExpiredTasks() {
-        runInTransaction {
+        runInTransactionAsync<Unit> {
             trackingTaskQueries.clearAllTasksWithStatus(
                 status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
                 siteId = workspace.siteId,

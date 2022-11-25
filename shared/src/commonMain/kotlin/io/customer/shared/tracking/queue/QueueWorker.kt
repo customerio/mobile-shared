@@ -2,6 +2,7 @@ package io.customer.shared.tracking.queue
 
 import io.customer.shared.database.QueryHelper
 import io.customer.shared.sdk.config.BackgroundQueueConfig
+import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.api.*
 import io.customer.shared.tracking.api.model.*
 import io.customer.shared.tracking.constant.Priority
@@ -37,6 +38,7 @@ internal class QueueWorkerImpl(
     private val dateTimeUtil: DateTimeUtil,
     private val jsonAdapter: JsonAdapter,
     override val executor: CoroutineExecutor,
+    private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val queryHelper: QueryHelper,
     private val trackingHttpClient: TrackingHttpClient,
@@ -49,13 +51,13 @@ internal class QueueWorkerImpl(
     }
 
     private fun TrackingTask.isCountedAsBatchTrigger(): Boolean {
-        return retryCount <= 0
+        return retryCount <= 0 || statusCode == null
     }
 
     private suspend fun acquireLock() {
         logger.debug("Acquiring lock for queue")
         val result = kotlin.runCatching {
-            mutex.lock(this)
+            mutex.lock(owner = this)
         }
         result.onFailure { ex ->
             logger.error("Mutex locking failed, reason: $ex")
@@ -96,7 +98,7 @@ internal class QueueWorkerImpl(
     private fun runQueueForTasks(pendingTasks: List<TrackingTask>) {
         runSuspended {
             acquireLock()
-            val result = kotlin.runCatching { validateTasksStatus(pendingTasks) }
+            val result = kotlin.runCatching { sendTasksInBatch(pendingTasks) }
             result.onFailure { ex ->
                 logger.error("Failed to run queue for ${pendingTasks.size} tasks with error: ${ex.message}")
             }
@@ -105,7 +107,7 @@ internal class QueueWorkerImpl(
     }
 
     @Throws(Exception::class)
-    private suspend fun validateTasksStatus(pendingTasks: List<TrackingTask>) {
+    private suspend fun sendTasksInBatch(pendingTasks: List<TrackingTask>) {
         var triggerBatch = false
         var tasksCount = 0
         val currentTime = dateTimeUtil.now
@@ -133,7 +135,10 @@ internal class QueueWorkerImpl(
     private suspend fun batchTasks(pendingTasks: List<TrackingTask>) {
         val activities = pendingTasks.map { task -> jsonAdapter.parseToActivity(task.activityJson) }
         val requests = activities.mapIndexed { index, activity ->
-            activity.toTrackingRequest(profileIdentifier = pendingTasks[index].identity ?: "N/A")
+            activity.toTrackingRequest(
+                identityType = workspace.identityType,
+                profileIdentifier = pendingTasks[index].identity ?: "N/A",
+            )
         }
         val result = trackingHttpClient.track(batch = requests)
         processBatchResponse(
@@ -158,7 +163,7 @@ internal class QueueWorkerImpl(
                             taskStatus = trackingError?.taskStatus ?: QueueTaskStatus.SENT,
                             statusCode = responseStatusCode,
                             errorReason = trackingError?.reason,
-                            id = task.id,
+                            id = task.uuid,
                         )
                     },
                 )
@@ -169,7 +174,7 @@ internal class QueueWorkerImpl(
                             taskStatus = QueueTaskStatus.FAILED,
                             statusCode = responseStatusCode,
                             errorReason = null,
-                            id = task.id,
+                            id = task.uuid,
                         )
                     },
                 )
@@ -179,9 +184,9 @@ internal class QueueWorkerImpl(
                 responses = pendingTasks.map { task ->
                     TaskResponse(
                         taskStatus = QueueTaskStatus.FAILED,
-                        statusCode = 1001,
+                        statusCode = null,
                         errorReason = null,
-                        id = task.id,
+                        id = task.uuid,
                     )
                 },
             )

@@ -2,7 +2,6 @@ package io.customer.shared.tracking.model
 
 import io.customer.shared.common.CustomAttributes
 import io.customer.shared.tracking.constant.ActivityType
-import io.customer.shared.util.generateRandomUUID
 import kotlinx.serialization.SerialName
 
 /**
@@ -26,8 +25,6 @@ internal val Activity.type: String
 internal fun CustomAttributes.merge(other: CustomAttributes?): CustomAttributes {
     return other.orEmpty() + this
 }
-
-internal fun Activity.generateUniqueID(): String = "$type-$timestamp-${generateRandomUUID()}"
 
 internal fun Activity.isUnique(): Boolean = when (this) {
     is Activity.AddDevice,

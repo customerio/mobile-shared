@@ -77,6 +77,7 @@ class KMMComponent(
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 jsonAdapter = staticComponent.jsonAdapter,
                 executor = staticComponent.coroutineExecutor,
+                workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 queryHelper = queryHelper,
                 trackingHttpClient = trackingHttpClient,
