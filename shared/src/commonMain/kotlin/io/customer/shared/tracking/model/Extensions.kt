@@ -2,6 +2,7 @@ package io.customer.shared.tracking.model
 
 import io.customer.shared.common.CustomAttributes
 import io.customer.shared.tracking.constant.ActivityType
+import io.customer.shared.tracking.constant.QueueTaskStatus
 import kotlinx.serialization.SerialName
 
 /**
@@ -26,7 +27,10 @@ internal fun CustomAttributes.merge(other: CustomAttributes?): CustomAttributes 
     return other.orEmpty() + this
 }
 
-internal fun Activity.isUnique(): Boolean = when (this) {
+/**
+ * Checks if it is safe to merge the type of events. Returns true if merge-able, false otherwise.
+ */
+internal fun Activity.canBeMerged(): Boolean = when (this) {
     is Activity.AddDevice,
     is Activity.DeleteDevice,
     is Activity.IdentifyProfile,
@@ -38,14 +42,5 @@ internal fun Activity.isUnique(): Boolean = when (this) {
     -> false
 }
 
-internal fun Activity.generateID(): String = when (this) {
-    is Activity.AddDevice,
-    is Activity.DeleteDevice,
-    is Activity.IdentifyProfile,
-    -> type
-    is Activity.Event,
-    is Activity.Metric,
-    is Activity.Page,
-    is Activity.Screen,
-    -> "$type-$timestamp"
-}
+internal val TaskResponse.shouldCountAsRetry: Boolean
+    get() = taskStatus != QueueTaskStatus.SENT

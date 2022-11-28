@@ -8,7 +8,7 @@ internal interface DateTimeUtil {
     val nowUnixTimestamp: Long
 
     /**
-     * Returns unix timestamp in milliseconds.
+     * Returns unix timestamp in seconds.
      */
     fun toUnixTimestamp(time: Instant): Long
 }
@@ -21,6 +21,6 @@ internal class DateTimeUtilImpl : DateTimeUtil {
         get() = toUnixTimestamp(time = this.now)
 
     override fun toUnixTimestamp(time: Instant): Long {
-        return time.toEpochMilliseconds()
+        return time.epochSeconds
     }
 }

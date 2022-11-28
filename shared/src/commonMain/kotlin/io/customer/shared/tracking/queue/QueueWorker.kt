@@ -156,37 +156,37 @@ internal class QueueWorkerImpl(
             if (response.isSuccessful && !response.isServerUnavailable) {
                 val errorMap = response.errors.associateBy { it.batchIndex ?: 0 }
 
-                queryHelper.updateTasksResponseStatus(
+                queryHelper.updateTasksStatusFromResponse(
                     responses = pendingTasks.mapIndexed { index, task ->
                         val trackingError = errorMap[index]
                         return@mapIndexed TaskResponse(
+                            uuid = task.uuid,
                             taskStatus = trackingError?.taskStatus ?: QueueTaskStatus.SENT,
                             statusCode = responseStatusCode,
                             errorReason = trackingError?.reason,
-                            id = task.uuid,
                         )
                     },
                 )
             } else {
-                queryHelper.updateTasksResponseStatus(
+                queryHelper.updateTasksStatusFromResponse(
                     responses = pendingTasks.map { task ->
                         TaskResponse(
+                            uuid = task.uuid,
                             taskStatus = QueueTaskStatus.FAILED,
                             statusCode = responseStatusCode,
                             errorReason = null,
-                            id = task.uuid,
                         )
                     },
                 )
             }
         } else {
-            queryHelper.updateTasksResponseStatus(
+            queryHelper.updateTasksStatusFromResponse(
                 responses = pendingTasks.map { task ->
                     TaskResponse(
+                        uuid = task.uuid,
                         taskStatus = QueueTaskStatus.FAILED,
                         statusCode = null,
                         errorReason = null,
-                        id = task.uuid,
                     )
                 },
             )

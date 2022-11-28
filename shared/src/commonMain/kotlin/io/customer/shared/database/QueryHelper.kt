@@ -12,6 +12,7 @@ import io.customer.shared.tracking.queue.failure
 import io.customer.shared.tracking.queue.success
 import io.customer.shared.util.*
 import io.customer.shared.work.*
+import kotlinx.datetime.Instant
 import local.TrackingTask
 import local.TrackingTaskQueries
 
@@ -33,7 +34,7 @@ internal interface QueryHelper {
     ): QueueTaskResult
 
     @BackgroundDispatcher
-    fun updateTasksResponseStatus(
+    fun updateTasksStatusFromResponse(
         responses: List<TaskResponse>,
     ): QueueTaskResult
 
@@ -48,6 +49,7 @@ internal class QueryHelperImpl(
     private val logger: Logger,
     private val dateTimeUtil: DateTimeUtil,
     private val jsonAdapter: JsonAdapter,
+    private val platformUtil: PlatformUtil,
     override val executor: CoroutineExecutor,
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
@@ -59,34 +61,50 @@ internal class QueryHelperImpl(
         siteId = workspace.siteId,
     )
 
+    /**
+     * Looks for unsent duplicate tasks that can be merged and may not be required to be sent as
+     * multiple events e.g. Identify, Add Device, etc.
+     */
     @WithinTransaction
     private fun Task.getDuplicateOrNull(): TrackingTask? = kotlin.runCatching {
-        return@runCatching if (activity.isUnique()) {
+        return@runCatching if (activity.canBeMerged()) {
             trackingTaskQueries.selectByType(
                 type = activity.type,
                 siteId = workspace.siteId,
-            ).executeAsOneOrNull()
+            ).executeAsOneOrNull()?.takeUnless { task ->
+                task.queueTaskStatus in listOf(
+                    QueueTaskStatus.QUEUED,
+                    QueueTaskStatus.SENDING,
+                    QueueTaskStatus.SENT,
+                )
+            }
         } else null
     }.getOrNull()
 
+    /**
+     * Merges activities that are merge-able, e.g. attributes, etc.
+     */
     @WithinTransaction
-    private fun TrackingTask.mergeActivities(activity: Activity): Pair<String, Activity> {
+    private fun TrackingTask.mergeIncompleteActivities(activity: Activity): Activity? {
         var mergedActivity: Activity? = null
-        if (queueTaskStatus != QueueTaskStatus.SENT) {
-            kotlin.runCatching {
-                activity.merge(other = jsonAdapter.parseToActivity(activityJson))
-            }.fold(
-                onSuccess = { value -> mergedActivity = value },
-                onFailure = { ex ->
-                    logger.fatal("Failed to parse activity ${type}, model version ${activityModelVersion}. Reason: ${ex.message}")
-                },
-            )
-        }
-        return mergedActivity?.let { act -> uuid to act } ?: (generateRandomUUID() to activity)
+        kotlin.runCatching {
+            activity.merge(other = jsonAdapter.parseToActivity(activityJson))
+        }.fold(
+            onSuccess = { value -> mergedActivity = value },
+            onFailure = { ex ->
+                logger.fatal("Failed to parse activity ${type}, model version ${activityModelVersion}. Reason: ${ex.message}")
+            },
+        )
+        return mergedActivity
     }
 
+    /**
+     * Updates status of tasks with the given values.
+     *
+     * For private use only, should only be called within database transaction.
+     */
     @WithinTransaction
-    private fun updateStatusInternal(
+    private fun updateTasksStatusInternal(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
     ): QueueTaskResult {
@@ -105,61 +123,81 @@ internal class QueryHelperImpl(
         return result.isSuccess
     }
 
+    /**
+     * Runs the given block in database transaction synchronously. The method returns result
+     * instantly and should only be called from background dispatcher.
+     */
     private fun <Result : Any?> runInTransaction(
         block: TransactionWithReturn<Result>.() -> Result,
     ): Result {
         return trackingTaskQueries.transactionWithResult(noEnclosing = false) { block() }
     }
 
-    private fun <Result : Any?> runInTransactionAsync(
-        block: TransactionWithReturn<Result>.() -> Result,
+    /**
+     * Runs the given block in database transaction asynchronously. The method does not return
+     * any result and should only called where receiving result is not required.
+     */
+    private fun runInTransactionAsync(
+        block: TransactionWithReturn<Unit>.() -> Unit,
     ) = runSuspended { runInTransaction(block = block) }
 
     @MainDispatcher
     override fun insertTask(task: Task, listener: TaskResultListener<QueueTaskResult>?) {
-        runInTransactionAsync<Unit> {
-            val result = kotlin.runCatching {
-                val (uuid, activity) = task.getDuplicateOrNull()?.mergeActivities(
-                    activity = task.activity,
-                ) ?: (generateRandomUUID() to task.activity)
+        runSuspended {
+            val result = runInTransaction<Result<QueueTaskResult>> {
+                return@runInTransaction kotlin.runCatching {
+                    val currentTime = dateTimeUtil.now
+                    val duplicateTask = task.getDuplicateOrNull()
+                    val mergedActivity =
+                        duplicateTask?.mergeIncompleteActivities(activity = task.activity)
+                    val activity = mergedActivity ?: task.activity
 
-                val currentTime = dateTimeUtil.now
-                val json = jsonAdapter.parseToString(activity = activity)
+                    val uuid: String
+                    val createdAt: Instant
+                    if (mergedActivity != null) {
+                        // since we are updating pending task
+                        uuid = duplicateTask.uuid
+                        createdAt = duplicateTask.createdAt
+                    } else {
+                        uuid = platformUtil.generateUUID()
+                        createdAt = currentTime
+                    }
 
-                trackingTaskQueries.insertOrReplaceTask(
-                    uuid = uuid,
-                    siteId = workspace.siteId,
-                    type = activity.type,
-                    createdAt = currentTime,
-                    updatedAt = currentTime,
-                    expiresAt = null,
-                    stalesAt = null,
-                    identity = task.profileIdentifier,
-                    identityType = workspace.identityType,
-                    activityJson = json,
-                    activityModelVersion = activity.modelVersion,
-                    queueTaskStatus = QueueTaskStatus.PENDING,
-                    priority = Priority.DEFAULT,
-                )
-                logger.debug("Adding task ${activity.type} to queue successful")
-
-                if (activity is Activity.IdentifyProfile) {
-                    trackingTaskQueries.updateAllAnonymousTasks(
-                        updatedAt = currentTime,
-                        identifier = task.profileIdentifier,
-                        identityType = workspace.identityType,
+                    val json = jsonAdapter.parseToString(activity = activity)
+                    trackingTaskQueries.insertOrReplaceTask(
+                        uuid = uuid,
                         siteId = workspace.siteId,
+                        type = activity.type,
+                        createdAt = createdAt,
+                        updatedAt = currentTime,
+                        expiresAt = null,
+                        stalesAt = null,
+                        identity = task.profileIdentifier,
+                        identityType = workspace.identityType,
+                        activityJson = json,
+                        activityModelVersion = activity.modelVersion,
+                        queueTaskStatus = QueueTaskStatus.PENDING,
+                        priority = Priority.DEFAULT,
                     )
-                    logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
+                    logger.debug("Adding task ${activity.type} to queue successful")
+
+                    if (activity is Activity.IdentifyProfile) {
+                        trackingTaskQueries.updateAllAnonymousTasks(
+                            updatedAt = currentTime,
+                            identifier = task.profileIdentifier,
+                            identityType = workspace.identityType,
+                            siteId = workspace.siteId,
+                        )
+                        logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
+                    }
+                    return@runCatching true
                 }
             }
             result.fold(
-                onSuccess = {
-                    runSuspended { listener?.success() }
-                },
+                onSuccess = { listener?.success() },
                 onFailure = { ex ->
                     logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
-                    runSuspended { listener?.failure(exception = ex) }
+                    listener?.failure(exception = ex)
                 },
             )
         }
@@ -170,23 +208,24 @@ internal class QueryHelperImpl(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
     ): QueueTaskResult = runInTransaction {
-        updateStatusInternal(status = status, tasks = tasks)
+        updateTasksStatusInternal(status = status, tasks = tasks)
     }
 
     @BackgroundDispatcher
-    override fun updateTasksResponseStatus(
+    override fun updateTasksStatusFromResponse(
         responses: List<TaskResponse>,
     ): QueueTaskResult = runInTransaction {
         val result = kotlin.runCatching {
             val updatedAtTime = dateTimeUtil.now
             responses.forEach { response ->
-                trackingTaskQueries.updateFailedTaskStatus(
+                trackingTaskQueries.updateTaskStatusFromResponse(
                     updatedAt = updatedAtTime,
                     status = response.taskStatus,
                     statusCode = response.statusCode,
                     errorReason = response.errorReason,
-                    ids = listOf(response.id),
+                    ids = listOf(response.uuid),
                     siteId = workspace.siteId,
+                    retryAttempts = if (response.shouldCountAsRetry) 1 else 0,
                 )
             }
         }
@@ -199,7 +238,7 @@ internal class QueryHelperImpl(
     @BackgroundDispatcher
     override fun selectAllPendingTasks(): List<TrackingTask>? = runInTransaction {
         val pendingTasks = selectAllPendingQuery.executeAsList()
-        val result = updateStatusInternal(
+        val result = updateTasksStatusInternal(
             status = QueueTaskStatus.QUEUED,
             tasks = pendingTasks,
         )
@@ -208,7 +247,7 @@ internal class QueryHelperImpl(
 
     @MainDispatcher
     override fun clearAllExpiredTasks() {
-        runInTransactionAsync<Unit> {
+        runInTransactionAsync {
             trackingTaskQueries.clearAllTasksWithStatus(
                 status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
                 siteId = workspace.siteId,

@@ -3,8 +3,11 @@ import io.customer.shared.tracking.api.model.TrackingErrorReason;
 import io.customer.shared.tracking.constant.QueueTaskStatus;
 import kotlinx.datetime.Instant;
 
+-- TABLE CREATIONS
+-- Any updates in the table should only be done with proper migrations
+
 CREATE TABLE IF NOT EXISTS trackingTask (
-  uuid TEXT NOT NULL ,
+  uuid TEXT NOT NULL,
   siteId TEXT NOT NULL,
   type TEXT NOT NULL,
   createdAt INTEGER AS Instant NOT NULL,
@@ -23,10 +26,12 @@ CREATE TABLE IF NOT EXISTS trackingTask (
   retryCount INTEGER NOT NULL DEFAULT 0,
   statusCode INTEGER DEFAULT NULL,
   errorReason TEXT AS TrackingErrorReason DEFAULT NULL,
-  PRIMARY KEY (uuid, siteId, type)
+  PRIMARY KEY (uuid)
 );
 
 -- INSERTIONS AND UPDATIONS
+-- All insertion queries must include [siteId], [createdAt] and [updatedAt]
+-- All updatation queries must include [updatedAt]
 
 insertOrReplaceTask:
 INSERT OR REPLACE INTO trackingTask (uuid, siteId, type, createdAt, updatedAt, expiresAt, stalesAt, identity, identityType, activityJson, activityModelVersion, queueTaskStatus, priority)
@@ -40,22 +45,11 @@ updateTasksStatus:
 UPDATE trackingTask SET updatedAt = :updatedAt, queueTaskStatus = :status
 WHERE uuid IN :ids AND siteId == :siteId;
 
-updateSuccessfulTaskStatus:
-UPDATE trackingTask SET updatedAt = :updatedAt, queueTaskStatus = :status, statusCode = :statusCode, errorReason = :errorReason
-WHERE uuid IN :ids AND siteId == :siteId;
-
-updateFailedTaskStatus:
-UPDATE trackingTask SET updatedAt = :updatedAt, queueTaskStatus = :status, retryCount = retryCount + 1, statusCode = :statusCode, errorReason = :errorReason
+updateTaskStatusFromResponse:
+UPDATE trackingTask SET updatedAt = :updatedAt, queueTaskStatus = :status, statusCode = :statusCode, errorReason = :errorReason, retryCount = retryCount + :retryAttempts
 WHERE uuid IN :ids AND siteId == :siteId;
 
 -- DELETIONS
-
-clearTable:
-DELETE FROM trackingTask;
-
-clearAllTasks:
-DELETE FROM trackingTask
-WHERE siteId == :siteId;
 
 clearAllTasksWithStatus:
 DELETE FROM trackingTask
@@ -66,13 +60,9 @@ WHERE queueTaskStatus IN :status AND siteId == :siteId;
 selectAllPendingTasks:
 SELECT * FROM trackingTask
 WHERE queueTaskStatus IN :status AND (identity IS NOT NULL OR identity == '') AND siteId == :siteId
-ORDER BY priority, createdAt
+ORDER BY priority ASC, createdAt DESC
 LIMIT :limit;
 
 selectByType:
 SELECT * FROM trackingTask
 WHERE type == :type AND siteId == :siteId;
-
-selectByPrimaryKey:
-SELECT * FROM trackingTask
-WHERE uuid == :id AND siteId == :siteId;

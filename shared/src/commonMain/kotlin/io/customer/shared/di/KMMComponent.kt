@@ -63,6 +63,7 @@ class KMMComponent(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 jsonAdapter = staticComponent.jsonAdapter,
+                platformUtil = staticComponent.platformUtil,
                 executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
