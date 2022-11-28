@@ -1,6 +1,7 @@
 package io.customer.shared.tracking.queue
 
 import io.customer.shared.common.QueueTaskResult
+import io.customer.shared.common.Success
 
 /**
  * Listener class to get callbacks for asynchronous operations.
@@ -13,7 +14,7 @@ fun interface TaskResultListener<TResult : Any?> {
  * Helper extension to mark queue tasks completion successful.
  */
 internal fun TaskResultListener<QueueTaskResult>.success() {
-    onComplete(Result.success(value = true))
+    onComplete(Result.success(value = QueueTaskResult.Success()))
 }
 
 /**

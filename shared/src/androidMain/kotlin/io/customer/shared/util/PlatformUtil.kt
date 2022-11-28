@@ -2,8 +2,8 @@ package io.customer.shared.util
 
 import java.util.*
 
-internal actual fun getPlatformUtil(): PlatformUtil = PlatformUtilImpl()
+internal actual fun getPlatformUtil(): PlatformUtil = AndroidPlatformUtil()
 
-internal class PlatformUtilImpl : PlatformUtil {
+internal class AndroidPlatformUtil : PlatformUtil {
     override fun generateUUID(): String = UUID.randomUUID().toString()
 }

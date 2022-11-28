@@ -4,9 +4,25 @@ package io.customer.shared.tracking.constant
  * Task status to determine current status of tasks in queue.
  */
 enum class QueueTaskStatus {
+    /**
+     * Initial status of newly added tasks.
+     */
     PENDING,
+
+    /**
+     * Tasks being processed by the queue.
+     */
     QUEUED,
+
+    /**
+     * Tasks that qualified for batching and are being sent to the server.
+     */
     SENDING,
+
+    /**
+     * Tasks that have been sent successfully to server. The tasks do not require to be processed
+     * any further and can be deleted safely.
+     */
     SENT,
 
     /**

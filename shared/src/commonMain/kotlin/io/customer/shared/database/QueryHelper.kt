@@ -2,6 +2,7 @@ package io.customer.shared.database
 
 import com.squareup.sqldelight.TransactionWithReturn
 import io.customer.shared.common.QueueTaskResult
+import io.customer.shared.common.Success
 import io.customer.shared.sdk.config.BackgroundQueueConfig
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.constant.Priority
@@ -12,13 +13,15 @@ import io.customer.shared.tracking.queue.failure
 import io.customer.shared.tracking.queue.success
 import io.customer.shared.util.*
 import io.customer.shared.work.*
+import io.customer.shared.work.BackgroundDispatcher
+import io.customer.shared.work.MainDispatcher
 import kotlinx.datetime.Instant
 import local.TrackingTask
 import local.TrackingTaskQueries
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
- * class to keep some abstraction from the database layer.
+ * class to provide abstraction and keep communication with database easier.
  */
 internal interface QueryHelper {
     @MainDispatcher
@@ -62,6 +65,24 @@ internal class QueryHelperImpl(
     )
 
     /**
+     * Runs the given block in database transaction synchronously. The method returns result
+     * instantly and should only be called from background dispatcher.
+     */
+    private fun <Result : Any?> runInTransaction(
+        block: TransactionWithReturn<Result>.() -> Result,
+    ): Result {
+        return trackingTaskQueries.transactionWithResult(noEnclosing = false) { block() }
+    }
+
+    /**
+     * Runs the given block in database transaction asynchronously. The method does not return
+     * any result and should only be called where receiving result is not required.
+     */
+    private fun runInTransactionAsync(
+        block: TransactionWithReturn<Unit>.() -> Unit,
+    ) = runSuspended { runInTransaction(block = block) }
+
+    /**
      * Looks for unsent duplicate tasks that can be merged and may not be required to be sent as
      * multiple events e.g. Identify, Add Device, etc.
      */
@@ -85,10 +106,10 @@ internal class QueryHelperImpl(
      * Merges activities that are merge-able, e.g. attributes, etc.
      */
     @WithinTransaction
-    private fun TrackingTask.mergeIncompleteActivities(activity: Activity): Activity? {
+    private fun TrackingTask.mergeActivities(activity: Activity): Activity? {
         var mergedActivity: Activity? = null
         kotlin.runCatching {
-            activity.merge(other = jsonAdapter.parseToActivity(activityJson))
+            activity.merge(other = jsonAdapter.fromJSON(Activity::class, activityJson))
         }.fold(
             onSuccess = { value -> mergedActivity = value },
             onFailure = { ex ->
@@ -124,75 +145,62 @@ internal class QueryHelperImpl(
     }
 
     /**
-     * Runs the given block in database transaction synchronously. The method returns result
-     * instantly and should only be called from background dispatcher.
+     * Inserts activity task safely to the database.
+     *
+     * For private use only, should only be called within database transaction.
      */
-    private fun <Result : Any?> runInTransaction(
-        block: TransactionWithReturn<Result>.() -> Result,
-    ): Result {
-        return trackingTaskQueries.transactionWithResult(noEnclosing = false) { block() }
-    }
+    @WithinTransaction
+    private fun insertTaskInternal(task: Task) = kotlin.runCatching {
+        val currentTime = dateTimeUtil.now
+        val duplicateTask = task.getDuplicateOrNull()
+        val mergedActivity = duplicateTask?.mergeActivities(activity = task.activity)
+        val activity = mergedActivity ?: task.activity
 
-    /**
-     * Runs the given block in database transaction asynchronously. The method does not return
-     * any result and should only called where receiving result is not required.
-     */
-    private fun runInTransactionAsync(
-        block: TransactionWithReturn<Unit>.() -> Unit,
-    ) = runSuspended { runInTransaction(block = block) }
+        val uuid: String
+        val createdAt: Instant
+        if (mergedActivity != null) {
+            // since we are updating pending task
+            uuid = duplicateTask.uuid
+            createdAt = duplicateTask.createdAt
+        } else {
+            uuid = platformUtil.generateUUID()
+            createdAt = currentTime
+        }
+
+        val json = jsonAdapter.toJSON(kClazz = Activity::class, content = activity)
+        trackingTaskQueries.insertOrReplaceTask(
+            uuid = uuid,
+            siteId = workspace.siteId,
+            type = activity.type,
+            createdAt = createdAt,
+            updatedAt = currentTime,
+            expiresAt = null,
+            stalesAt = null,
+            identity = task.profileIdentifier,
+            identityType = workspace.identityType,
+            activityJson = json,
+            activityModelVersion = activity.modelVersion,
+            queueTaskStatus = QueueTaskStatus.PENDING,
+            priority = Priority.DEFAULT,
+        )
+        logger.debug("Adding task ${activity.type} to queue successful")
+
+        if (activity is Activity.IdentifyProfile) {
+            trackingTaskQueries.updateAllAnonymousTasks(
+                updatedAt = currentTime,
+                identifier = task.profileIdentifier,
+                identityType = workspace.identityType,
+                siteId = workspace.siteId,
+            )
+            logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
+        }
+        return@runCatching QueueTaskResult.Success()
+    }
 
     @MainDispatcher
     override fun insertTask(task: Task, listener: TaskResultListener<QueueTaskResult>?) {
         runSuspended {
-            val result = runInTransaction<Result<QueueTaskResult>> {
-                return@runInTransaction kotlin.runCatching {
-                    val currentTime = dateTimeUtil.now
-                    val duplicateTask = task.getDuplicateOrNull()
-                    val mergedActivity =
-                        duplicateTask?.mergeIncompleteActivities(activity = task.activity)
-                    val activity = mergedActivity ?: task.activity
-
-                    val uuid: String
-                    val createdAt: Instant
-                    if (mergedActivity != null) {
-                        // since we are updating pending task
-                        uuid = duplicateTask.uuid
-                        createdAt = duplicateTask.createdAt
-                    } else {
-                        uuid = platformUtil.generateUUID()
-                        createdAt = currentTime
-                    }
-
-                    val json = jsonAdapter.parseToString(activity = activity)
-                    trackingTaskQueries.insertOrReplaceTask(
-                        uuid = uuid,
-                        siteId = workspace.siteId,
-                        type = activity.type,
-                        createdAt = createdAt,
-                        updatedAt = currentTime,
-                        expiresAt = null,
-                        stalesAt = null,
-                        identity = task.profileIdentifier,
-                        identityType = workspace.identityType,
-                        activityJson = json,
-                        activityModelVersion = activity.modelVersion,
-                        queueTaskStatus = QueueTaskStatus.PENDING,
-                        priority = Priority.DEFAULT,
-                    )
-                    logger.debug("Adding task ${activity.type} to queue successful")
-
-                    if (activity is Activity.IdentifyProfile) {
-                        trackingTaskQueries.updateAllAnonymousTasks(
-                            updatedAt = currentTime,
-                            identifier = task.profileIdentifier,
-                            identityType = workspace.identityType,
-                            siteId = workspace.siteId,
-                        )
-                        logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
-                    }
-                    return@runCatching true
-                }
-            }
+            val result = runInTransaction { insertTaskInternal(task = task) }
             result.fold(
                 onSuccess = { listener?.success() },
                 onFailure = { ex ->

@@ -42,5 +42,9 @@ internal fun Activity.canBeMerged(): Boolean = when (this) {
     -> false
 }
 
+/**
+ * Determines whether the task update should be counted as result of failed attempt or not. We do
+ * not count successful attempts in retry count.
+ */
 internal val TaskResponse.shouldCountAsRetry: Boolean
     get() = taskStatus != QueueTaskStatus.SENT

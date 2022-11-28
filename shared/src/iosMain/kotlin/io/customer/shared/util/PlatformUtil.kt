@@ -2,8 +2,8 @@ package io.customer.shared.util
 
 import platform.Foundation.NSUUID
 
-internal actual fun getPlatformUtil(): PlatformUtil = PlatformUtilImpl()
+internal actual fun getPlatformUtil(): PlatformUtil = IOSPlatformUtil()
 
-internal class PlatformUtilImpl : PlatformUtil {
+internal class IOSPlatformUtil : PlatformUtil {
     override fun generateUUID(): String = NSUUID().UUIDString()
 }

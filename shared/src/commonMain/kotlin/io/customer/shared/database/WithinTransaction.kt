@@ -1,9 +1,9 @@
 package io.customer.shared.database
 
 /**
- * Denotes that the annotated method should only be called on a background dispatcher.
- * If the annotated element is a class, then all methods in the class should be called
- * on background dispatcher.
+ * Denotes that the annotated method should only be called inside database transaction.
+ * This methods make it easier to set the expectations for caller to avoid any unwanted updates to
+ * the database.
  */
 @Target(
     AnnotationTarget.FUNCTION,
@@ -15,4 +15,4 @@ package io.customer.shared.database
     AnnotationTarget.VALUE_PARAMETER,
 )
 @Retention(AnnotationRetention.SOURCE)
-annotation class WithinTransaction
+internal annotation class WithinTransaction
