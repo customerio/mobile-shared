@@ -2,9 +2,8 @@ package io.customer.shared.tracking.queue
 
 import io.customer.shared.Platform
 import io.customer.shared.common.CustomAttributesCompat
-import io.customer.shared.common.QueueTaskResult
 import io.customer.shared.common.fix
-import io.customer.shared.database.QueryHelper
+import io.customer.shared.database.TrackingTaskQueryHelper
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.api.model.Device
 import io.customer.shared.tracking.constant.MetricEvent
@@ -22,7 +21,7 @@ interface BackgroundQueue {
     fun queueIdentifyProfile(
         profileIdentifier: String,
         attributes: CustomAttributesCompat,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun queueTrack(
@@ -30,32 +29,32 @@ interface BackgroundQueue {
         name: String,
         trackingType: TrackingType,
         attributes: CustomAttributesCompat,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun queueRegisterDevice(
         profileIdentifier: String?,
         device: Device,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun queueDeletePushToken(
         profileIdentifier: String?,
         deviceToken: String,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun queueTrackMetric(
         deliveryId: String,
         deviceToken: String,
         event: MetricEvent,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun queueTrackInAppMetric(
         deliveryId: String,
         event: MetricEvent,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
     fun sendAllPending()
@@ -68,13 +67,13 @@ internal class BackgroundQueueImpl(
     private val dateTimeUtil: DateTimeUtil,
     private val workspace: Workspace,
     private val platform: Platform,
-    private val queryHelper: QueryHelper,
+    private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueWorker: QueueWorker,
 ) : BackgroundQueue {
     override fun queueIdentifyProfile(
         profileIdentifier: String,
         attributes: CustomAttributesCompat,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.IdentifyProfile(
@@ -88,7 +87,7 @@ internal class BackgroundQueueImpl(
         name: String,
         trackingType: TrackingType,
         attributes: CustomAttributesCompat,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = when (trackingType) {
@@ -114,7 +113,7 @@ internal class BackgroundQueueImpl(
     override fun queueRegisterDevice(
         profileIdentifier: String?,
         device: Device,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.AddDevice(
@@ -129,7 +128,7 @@ internal class BackgroundQueueImpl(
     override fun queueDeletePushToken(
         profileIdentifier: String?,
         deviceToken: String,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.DeleteDevice(
@@ -145,7 +144,7 @@ internal class BackgroundQueueImpl(
         deliveryId: String,
         deviceToken: String,
         event: MetricEvent,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = null,
         activity = Activity.Metric(
@@ -160,7 +159,7 @@ internal class BackgroundQueueImpl(
     override fun queueTrackInAppMetric(
         deliveryId: String,
         event: MetricEvent,
-        listener: TaskResultListener<QueueTaskResult>?,
+        listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = null,
         activity = Activity.Metric(
@@ -175,9 +174,9 @@ internal class BackgroundQueueImpl(
     private fun addToQueue(
         profileIdentifier: String?,
         activity: Activity,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     ) {
-        queryHelper.insertTask(
+        trackingTaskQueryHelper.insertTask(
             task = Task(
                 profileIdentifier = profileIdentifier,
                 identityType = workspace.identityType,
@@ -195,6 +194,6 @@ internal class BackgroundQueueImpl(
     }
 
     override fun deleteExpiredTasks() {
-        queryHelper.clearAllExpiredTasks()
+        trackingTaskQueryHelper.clearAllExpiredTasks()
     }
 }

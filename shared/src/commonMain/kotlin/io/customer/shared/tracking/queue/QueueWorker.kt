@@ -1,6 +1,6 @@
 package io.customer.shared.tracking.queue
 
-import io.customer.shared.database.QueryHelper
+import io.customer.shared.database.TrackingTaskQueryHelper
 import io.customer.shared.sdk.config.BackgroundQueueConfig
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.api.*
@@ -40,7 +40,7 @@ internal class QueueWorkerImpl(
     override val executor: CoroutineExecutor,
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
-    private val queryHelper: QueryHelper,
+    private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val trackingHttpClient: TrackingHttpClient,
 ) : QueueWorker, CoroutineExecutable {
     private val mutex = Mutex()
@@ -84,7 +84,7 @@ internal class QueueWorkerImpl(
 
             // TODO try without mutex using database lock
             acquireLock()
-            val pendingTasks = queryHelper.selectAllPendingTasks()
+            val pendingTasks = trackingTaskQueryHelper.selectAllPendingTasks()
             if (!pendingTasks.isNullOrEmpty()) {
                 val result = kotlin.runCatching { runQueueForTasks(pendingTasks) }
                 result.onFailure { ex ->
@@ -118,11 +118,17 @@ internal class QueueWorkerImpl(
         triggerBatch = triggerBatch || tasksCount >= backgroundQueueConfig.batchDelayMinTasks
         logger.debug("Checking tasks: ${pendingTasks.size}, batching :$triggerBatch")
         if (triggerBatch) {
-            queryHelper.updateTasksStatus(status = QueueTaskStatus.SENDING, tasks = pendingTasks)
+            trackingTaskQueryHelper.updateTasksStatus(
+                status = QueueTaskStatus.SENDING,
+                tasks = pendingTasks,
+            )
             batchTasks(pendingTasks = pendingTasks)
         } else {
             // queue next
-            queryHelper.updateTasksStatus(status = QueueTaskStatus.PENDING, tasks = pendingTasks)
+            trackingTaskQueryHelper.updateTasksStatus(
+                status = QueueTaskStatus.PENDING,
+                tasks = pendingTasks,
+            )
         }
     }
 
@@ -156,7 +162,7 @@ internal class QueueWorkerImpl(
             if (response.isSuccessful && !response.isServerUnavailable) {
                 val errorMap = response.errors.associateBy { it.batchIndex ?: 0 }
 
-                queryHelper.updateTasksStatusFromResponse(
+                trackingTaskQueryHelper.updateTasksStatusFromResponse(
                     responses = pendingTasks.mapIndexed { index, task ->
                         val trackingError = errorMap[index]
                         return@mapIndexed TaskResponse(
@@ -168,7 +174,7 @@ internal class QueueWorkerImpl(
                     },
                 )
             } else {
-                queryHelper.updateTasksStatusFromResponse(
+                trackingTaskQueryHelper.updateTasksStatusFromResponse(
                     responses = pendingTasks.map { task ->
                         TaskResponse(
                             uuid = task.uuid,
@@ -180,7 +186,7 @@ internal class QueueWorkerImpl(
                 )
             }
         } else {
-            queryHelper.updateTasksStatusFromResponse(
+            trackingTaskQueryHelper.updateTasksStatusFromResponse(
                 responses = pendingTasks.map { task ->
                     TaskResponse(
                         uuid = task.uuid,

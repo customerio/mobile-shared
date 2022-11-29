@@ -46,7 +46,7 @@ class KMMComponent(
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 platform = sdkComponent.platform,
-                queryHelper = queryHelper,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueWorker = queueWorker,
             )
         }
@@ -80,7 +80,7 @@ class KMMComponent(
                 executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
-                queryHelper = queryHelper,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
                 trackingHttpClient = trackingHttpClient,
             )
         }
