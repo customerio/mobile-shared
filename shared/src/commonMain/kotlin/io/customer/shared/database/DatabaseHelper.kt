@@ -1,7 +1,7 @@
 package io.customer.shared.database
 
-import io.customer.shared.local.CioDatabase
 import com.squareup.sqldelight.EnumColumnAdapter
+import io.customer.shared.local.CioDatabase
 import local.TrackingTask
 
 internal class DatabaseHelper(databaseDriverFactory: DatabaseDriverFactory) {
@@ -10,8 +10,6 @@ internal class DatabaseHelper(databaseDriverFactory: DatabaseDriverFactory) {
         trackingTaskAdapter = TrackingTask.Adapter(
             createdAtAdapter = DateTimeInstantAdapter,
             updatedAtAdapter = DateTimeInstantAdapter,
-            expiresAtAdapter = DateTimeInstantAdapter,
-            stalesAtAdapter = DateTimeInstantAdapter,
             identityTypeAdapter = EnumColumnAdapter(),
             queueTaskStatusAdapter = EnumColumnAdapter(),
             errorReasonAdapter = EnumColumnAdapter(),

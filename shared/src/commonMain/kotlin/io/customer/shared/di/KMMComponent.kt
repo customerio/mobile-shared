@@ -57,9 +57,9 @@ class KMMComponent(
     private val databaseHelper: DatabaseHelper
         get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
 
-    internal val queryHelper: QueryHelper
+    internal val trackingTaskQueryHelper: TrackingTaskQueryHelper
         get() = getSingletonInstance {
-            QueryHelperImpl(
+            TrackingTaskQueryHelperImpl(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 jsonAdapter = staticComponent.jsonAdapter,

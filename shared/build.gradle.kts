@@ -28,7 +28,7 @@ sqldelight {
     database("CioDatabase") {
         packageName = "io.customer.shared.local"
         // The directory where to store '.db' schema files to verify migrations
-        schemaOutputDirectory = file("src/main/sqldelight/databases")
+        schemaOutputDirectory = file("src/commonMain/sqldelight/schema")
         // Migration files will fail during compilation if there are errors in them.
         verifyMigrations = true
     }

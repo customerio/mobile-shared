@@ -1,8 +1,7 @@
 package io.customer.shared.database
 
 import com.squareup.sqldelight.TransactionWithReturn
-import io.customer.shared.common.QueueTaskResult
-import io.customer.shared.common.Success
+import io.customer.shared.runSuspended
 import io.customer.shared.sdk.config.BackgroundQueueConfig
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.constant.Priority
@@ -11,10 +10,12 @@ import io.customer.shared.tracking.model.*
 import io.customer.shared.tracking.queue.TaskResultListener
 import io.customer.shared.tracking.queue.failure
 import io.customer.shared.tracking.queue.success
-import io.customer.shared.util.*
-import io.customer.shared.work.*
-import io.customer.shared.work.BackgroundDispatcher
-import io.customer.shared.work.MainDispatcher
+import io.customer.shared.util.DateTimeUtil
+import io.customer.shared.util.JsonAdapter
+import io.customer.shared.util.Logger
+import io.customer.shared.util.PlatformUtil
+import io.customer.shared.work.CoroutineExecutable
+import io.customer.shared.work.CoroutineExecutor
 import kotlinx.datetime.Instant
 import local.TrackingTask
 import local.TrackingTaskQueries
@@ -23,32 +24,27 @@ import local.TrackingTaskQueries
  * The class works as a bridge for SQL queries. All queries to database should be made using this
  * class to provide abstraction and keep communication with database easier.
  */
-internal interface QueryHelper {
-    @MainDispatcher
+internal interface TrackingTaskQueryHelper {
     fun insertTask(
         task: Task,
-        listener: TaskResultListener<QueueTaskResult>? = null,
+        listener: TaskResultListener<Boolean>? = null,
     )
 
-    @BackgroundDispatcher
     fun updateTasksStatus(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
-    ): QueueTaskResult
+    ): Boolean
 
-    @BackgroundDispatcher
     fun updateTasksStatusFromResponse(
         responses: List<TaskResponse>,
-    ): QueueTaskResult
+    ): Boolean
 
-    @BackgroundDispatcher
     fun selectAllPendingTasks(): List<TrackingTask>?
 
-    @MainDispatcher
-    fun clearAllExpiredTasks()
+    fun clearAllExpiredTasks(listener: TaskResultListener<Boolean>? = null)
 }
 
-internal class QueryHelperImpl(
+internal class TrackingTaskQueryHelperImpl(
     private val logger: Logger,
     private val dateTimeUtil: DateTimeUtil,
     private val jsonAdapter: JsonAdapter,
@@ -57,7 +53,7 @@ internal class QueryHelperImpl(
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskQueries: TrackingTaskQueries,
-) : QueryHelper, CoroutineExecutable {
+) : TrackingTaskQueryHelper, CoroutineExecutable {
     private val selectAllPendingQuery = trackingTaskQueries.selectAllPendingTasks(
         status = listOf(QueueTaskStatus.PENDING, QueueTaskStatus.FAILED),
         limit = backgroundQueueConfig.batchTasksMax.toLong(),
@@ -75,18 +71,11 @@ internal class QueryHelperImpl(
     }
 
     /**
-     * Runs the given block in database transaction asynchronously. The method does not return
-     * any result and should only be called where receiving result is not required.
-     */
-    private fun runInTransactionAsync(
-        block: TransactionWithReturn<Unit>.() -> Unit,
-    ) = runSuspended { runInTransaction(block = block) }
-
-    /**
      * Looks for unsent duplicate tasks that can be merged and may not be required to be sent as
      * multiple events e.g. Identify, Add Device, etc.
+     *
+     * For private use only, should only be called within database transaction.
      */
-    @WithinTransaction
     private fun Task.getDuplicateOrNull(): TrackingTask? = kotlin.runCatching {
         return@runCatching if (activity.canBeMerged()) {
             trackingTaskQueries.selectByType(
@@ -104,8 +93,9 @@ internal class QueryHelperImpl(
 
     /**
      * Merges activities that are merge-able, e.g. attributes, etc.
+     *
+     * For private use only, should only be called within database transaction.
      */
-    @WithinTransaction
     private fun TrackingTask.mergeActivities(activity: Activity): Activity? {
         var mergedActivity: Activity? = null
         kotlin.runCatching {
@@ -124,11 +114,10 @@ internal class QueryHelperImpl(
      *
      * For private use only, should only be called within database transaction.
      */
-    @WithinTransaction
     private fun updateTasksStatusInternal(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
-    ): QueueTaskResult {
+    ): Boolean {
         val taskIds = tasks.map { task -> task.uuid }
         val result = kotlin.runCatching {
             trackingTaskQueries.updateTasksStatus(
@@ -149,7 +138,6 @@ internal class QueryHelperImpl(
      *
      * For private use only, should only be called within database transaction.
      */
-    @WithinTransaction
     private fun insertTaskInternal(task: Task) = kotlin.runCatching {
         val currentTime = dateTimeUtil.now
         val duplicateTask = task.getDuplicateOrNull()
@@ -174,8 +162,6 @@ internal class QueryHelperImpl(
             type = activity.type,
             createdAt = createdAt,
             updatedAt = currentTime,
-            expiresAt = null,
-            stalesAt = null,
             identity = task.profileIdentifier,
             identityType = workspace.identityType,
             activityJson = json,
@@ -194,13 +180,12 @@ internal class QueryHelperImpl(
             )
             logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
         }
-        return@runCatching QueueTaskResult.Success()
+        return@runCatching true
     }
 
-    @MainDispatcher
-    override fun insertTask(task: Task, listener: TaskResultListener<QueueTaskResult>?) {
+    override fun insertTask(task: Task, listener: TaskResultListener<Boolean>?) {
         runSuspended {
-            val result = runInTransaction { insertTaskInternal(task = task) }
+            val result: Result<Boolean> = runInTransaction { insertTaskInternal(task = task) }
             result.fold(
                 onSuccess = { listener?.success() },
                 onFailure = { ex ->
@@ -211,18 +196,16 @@ internal class QueryHelperImpl(
         }
     }
 
-    @BackgroundDispatcher
     override fun updateTasksStatus(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
-    ): QueueTaskResult = runInTransaction {
+    ): Boolean = runInTransaction {
         updateTasksStatusInternal(status = status, tasks = tasks)
     }
 
-    @BackgroundDispatcher
     override fun updateTasksStatusFromResponse(
         responses: List<TaskResponse>,
-    ): QueueTaskResult = runInTransaction {
+    ): Boolean = runInTransaction {
         val result = kotlin.runCatching {
             val updatedAtTime = dateTimeUtil.now
             responses.forEach { response ->
@@ -243,7 +226,6 @@ internal class QueryHelperImpl(
         return@runInTransaction result.isSuccess
     }
 
-    @BackgroundDispatcher
     override fun selectAllPendingTasks(): List<TrackingTask>? = runInTransaction {
         val pendingTasks = selectAllPendingQuery.executeAsList()
         val result = updateTasksStatusInternal(
@@ -253,12 +235,22 @@ internal class QueryHelperImpl(
         return@runInTransaction pendingTasks.takeIf { result }
     }
 
-    @MainDispatcher
-    override fun clearAllExpiredTasks() {
-        runInTransactionAsync {
-            trackingTaskQueries.clearAllTasksWithStatus(
-                status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
-                siteId = workspace.siteId,
+    override fun clearAllExpiredTasks(listener: TaskResultListener<Boolean>?) {
+        runSuspended {
+            val result: Result<Unit> = runInTransaction {
+                kotlin.runCatching {
+                    trackingTaskQueries.clearAllTasksWithStatus(
+                        status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
+                        siteId = workspace.siteId,
+                    )
+                }
+            }
+            result.fold(
+                onSuccess = { listener?.success() },
+                onFailure = { ex ->
+                    logger.error("Unable to clear expired tasks from queue. Reason: ${ex.message}")
+                    listener?.failure(exception = ex)
+                },
             )
         }
     }
