@@ -12,11 +12,6 @@ CREATE TABLE IF NOT EXISTS trackingTask (
   type TEXT NOT NULL,
   createdAt INTEGER AS Instant NOT NULL,
   updatedAt INTEGER AS Instant NOT NULL,
-  -- time after which the event may be removed without sending to the server
-  expiresAt INTEGER AS Instant DEFAULT NULL,
-  -- time after which the event can be deleted locally, this can be helpful in keeping logs for
-  -- remote debugging in future
-  stalesAt INTEGER AS Instant DEFAULT NULL,
   identity TEXT,
   identityType TEXT AS IdentityType,
   activityJson TEXT NOT NULL,
@@ -34,8 +29,8 @@ CREATE TABLE IF NOT EXISTS trackingTask (
 -- All updatation queries must include [updatedAt]
 
 insertOrReplaceTask:
-INSERT OR REPLACE INTO trackingTask (uuid, siteId, type, createdAt, updatedAt, expiresAt, stalesAt, identity, identityType, activityJson, activityModelVersion, queueTaskStatus, priority)
-VALUES (?, ?, ?,?, ?,?, ?,?, ?,?, ?,?, ?);
+INSERT OR REPLACE INTO trackingTask (uuid, siteId, type, createdAt, updatedAt, identity, identityType, activityJson, activityModelVersion, queueTaskStatus, priority)
+VALUES (?, ?, ?,?, ?,?,  ?,?, ?,?, ?);
 
 updateAllAnonymousTasks:
 UPDATE trackingTask SET updatedAt = :updatedAt, identity = :identifier, identityType = :identityType
