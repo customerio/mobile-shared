@@ -1,3 +1,5 @@
+@file:UseContextualSerialization(Any::class)
+
 package io.customer.shared.tracking.model
 
 import io.customer.shared.common.CustomAttributes
@@ -5,6 +7,7 @@ import io.customer.shared.tracking.api.model.Device
 import io.customer.shared.tracking.constant.ActivityType
 import io.customer.shared.tracking.constant.MetricEvent
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.UseContextualSerialization
 
 /**
  * Activity class to hold events for tracking. The class is sealed so only defined events can be

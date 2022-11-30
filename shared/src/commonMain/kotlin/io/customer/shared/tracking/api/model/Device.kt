@@ -1,7 +1,10 @@
+@file:UseContextualSerialization(Any::class)
+
 package io.customer.shared.tracking.api.model
 
 import io.customer.shared.common.CustomAttributes
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.UseContextualSerialization
 
 /**
  * Device model to be used when making device tracking request.
