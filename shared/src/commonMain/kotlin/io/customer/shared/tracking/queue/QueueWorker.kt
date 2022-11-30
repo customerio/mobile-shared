@@ -1,5 +1,6 @@
 package io.customer.shared.tracking.queue
 
+import io.customer.shared.database.TrackingTask
 import io.customer.shared.database.TrackingTaskQueryHelper
 import io.customer.shared.sdk.config.BackgroundQueueConfig
 import io.customer.shared.sdk.meta.Workspace
@@ -17,7 +18,6 @@ import io.customer.shared.work.CoroutineExecutor
 import io.customer.shared.work.runSuspended
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Instant
-import local.TrackingTask
 import kotlin.time.DurationUnit
 
 /**
