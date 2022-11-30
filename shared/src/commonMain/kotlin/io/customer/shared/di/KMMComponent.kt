@@ -5,10 +5,7 @@ import io.customer.shared.tracking.api.HttpClientBuilder
 import io.customer.shared.tracking.api.HttpClientBuilderImpl
 import io.customer.shared.tracking.api.TrackingHttpClient
 import io.customer.shared.tracking.api.TrackingHttpClientImpl
-import io.customer.shared.tracking.queue.BackgroundQueue
-import io.customer.shared.tracking.queue.BackgroundQueueImpl
-import io.customer.shared.tracking.queue.QueueWorker
-import io.customer.shared.tracking.queue.QueueWorkerImpl
+import io.customer.shared.tracking.queue.*
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.JsonAdapterImpl
 import io.ktor.client.*
@@ -81,17 +78,26 @@ class KMMComponent(
             )
         }
 
+    internal val queueRunner: QueueRunner
+        get() = getSingletonInstance {
+            QueueRunnerImpl(
+                logger = staticComponent.logger,
+                jsonAdapter = jsonAdapter,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
+                trackingHttpClient = trackingHttpClient,
+            )
+        }
+
     internal val queueWorker: QueueWorker
         get() = getSingletonInstance {
             QueueWorkerImpl(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
-                jsonAdapter = jsonAdapter,
                 executor = staticComponent.coroutineExecutor,
-                workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
-                trackingHttpClient = trackingHttpClient,
+                queueRunner = queueRunner,
             )
         }
 
