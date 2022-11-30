@@ -28,8 +28,8 @@ class KMMStaticComponent : DIGraph() {
     val logger: Logger
         get() = getSingletonInstance { ConsoleLogger() }
 
-    internal val platformUtil: PlatformUtil
-        get() = getSingletonInstance { getPlatformUtil() }
+    internal val databaseUtil: DatabaseUtil
+        get() = getSingletonInstance { getDatabaseUtil() }
 
     internal val coroutineExecutor: CoroutineExecutor
         get() = getNewInstance {

@@ -1,8 +1,6 @@
 package io.customer.shared.database
 
 import com.squareup.sqldelight.EnumColumnAdapter
-import io.customer.shared.local.CioDatabase
-import local.TrackingTask
 
 internal class DatabaseHelper(databaseDriverFactory: DatabaseDriverFactory) {
     private val database = CioDatabase(

@@ -10,15 +10,13 @@ import io.customer.shared.tracking.model.*
 import io.customer.shared.tracking.queue.TaskResultListener
 import io.customer.shared.tracking.queue.failure
 import io.customer.shared.tracking.queue.success
+import io.customer.shared.util.DatabaseUtil
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
-import io.customer.shared.util.PlatformUtil
 import io.customer.shared.work.CoroutineExecutable
 import io.customer.shared.work.CoroutineExecutor
 import kotlinx.datetime.Instant
-import local.TrackingTask
-import local.TrackingTaskQueries
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
@@ -48,7 +46,7 @@ internal class TrackingTaskQueryHelperImpl(
     private val logger: Logger,
     private val dateTimeUtil: DateTimeUtil,
     private val jsonAdapter: JsonAdapter,
-    private val platformUtil: PlatformUtil,
+    private val databaseUtil: DatabaseUtil,
     override val executor: CoroutineExecutor,
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
@@ -151,7 +149,7 @@ internal class TrackingTaskQueryHelperImpl(
             uuid = duplicateTask.uuid
             createdAt = duplicateTask.createdAt
         } else {
-            uuid = platformUtil.generateUUID()
+            uuid = databaseUtil.generateUUID()
             createdAt = currentTime
         }
 
