@@ -1,5 +1,7 @@
 package io.customer.shared.util
 
+import io.customer.shared.di.SDKComponent
+import io.customer.shared.serializer.CustomAttributeContextualSerializer
 import io.customer.shared.tracking.api.*
 import io.ktor.http.*
 import io.ktor.serialization.*
@@ -31,9 +33,22 @@ interface JsonAdapter {
 }
 
 @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
-internal class JsonAdapterImpl : JsonAdapter {
+internal class JsonAdapterImpl(
+    private val logger: Logger,
+    private val sdkComponent: SDKComponent,
+) : JsonAdapter {
     private val parser = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
         explicitNulls = false
+        serializersModule = SerializersModule {
+            contextual(
+                CustomAttributeContextualSerializer(
+                    logger = logger,
+                    serializer = sdkComponent.customAttributeSerializer,
+                ),
+            )
+        }
     }
 
     override fun configureKtorJson(configuration: Configuration, contentType: ContentType) {

@@ -101,6 +101,11 @@ internal class QueueWorkerImpl(
             val result = kotlin.runCatching { sendTasksInBatch(pendingTasks) }
             result.onFailure { ex ->
                 logger.error("Failed to run queue for ${pendingTasks.size} tasks with error: ${ex.message}")
+                trackingTaskQueryHelper.updateTasksStatus(
+                    status = QueueTaskStatus.PENDING,
+                    tasks = pendingTasks,
+                )
+                ex.printStackTrace()
             }
             releaseLock()
         }

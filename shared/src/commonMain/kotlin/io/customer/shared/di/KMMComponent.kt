@@ -9,6 +9,8 @@ import io.customer.shared.tracking.queue.BackgroundQueue
 import io.customer.shared.tracking.queue.BackgroundQueueImpl
 import io.customer.shared.tracking.queue.QueueWorker
 import io.customer.shared.tracking.queue.QueueWorkerImpl
+import io.customer.shared.util.JsonAdapter
+import io.customer.shared.util.JsonAdapterImpl
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -57,12 +59,20 @@ class KMMComponent(
     private val databaseHelper: DatabaseHelper
         get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
 
+    internal val jsonAdapter: JsonAdapter
+        get() = getSingletonInstance {
+            JsonAdapterImpl(
+                logger = staticComponent.logger,
+                sdkComponent = sdkComponent,
+            )
+        }
+
     internal val trackingTaskQueryHelper: TrackingTaskQueryHelper
         get() = getSingletonInstance {
             TrackingTaskQueryHelperImpl(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
-                jsonAdapter = staticComponent.jsonAdapter,
+                jsonAdapter = jsonAdapter,
                 platformUtil = staticComponent.platformUtil,
                 executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
@@ -76,7 +86,7 @@ class KMMComponent(
             QueueWorkerImpl(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
-                jsonAdapter = staticComponent.jsonAdapter,
+                jsonAdapter = jsonAdapter,
                 executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
@@ -113,7 +123,7 @@ class KMMComponent(
                     level = requestBuilder.clientLogLevel
                 }
                 install(ContentNegotiation) {
-                    staticComponent.jsonAdapter.configureKtorJson(configuration = this)
+                    jsonAdapter.configureKtorJson(configuration = this)
                 }
                 defaultRequest {
                     url(urlString = requestBuilder.baseURL)

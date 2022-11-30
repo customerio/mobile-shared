@@ -25,9 +25,6 @@ class KMMStaticComponent : DIGraph() {
     internal val dispatcher: Dispatcher
         get() = getSingletonInstance { KMMDispatcher() }
 
-    internal val jsonAdapter: JsonAdapter
-        get() = getSingletonInstance { JsonAdapterImpl() }
-
     val logger: Logger
         get() = getSingletonInstance { ConsoleLogger() }
 

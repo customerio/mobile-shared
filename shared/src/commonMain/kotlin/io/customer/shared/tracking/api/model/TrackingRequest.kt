@@ -1,7 +1,10 @@
+@file:UseContextualSerialization(Any::class)
+
 package io.customer.shared.tracking.api.model
 
 import io.customer.shared.common.CustomAttributes
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.UseContextualSerialization
 
 // TODO: Find ways to break down into smaller classes and overcome kotlin type serialization issue
 @kotlinx.serialization.Serializable

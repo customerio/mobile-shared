@@ -1,8 +1,7 @@
 package io.customer.shared.tracking.queue
 
 import io.customer.shared.Platform
-import io.customer.shared.common.CustomAttributesCompat
-import io.customer.shared.common.fix
+import io.customer.shared.common.CustomAttributes
 import io.customer.shared.database.TrackingTaskQueryHelper
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.api.model.Device
@@ -20,7 +19,7 @@ import io.customer.shared.util.Logger
 interface BackgroundQueue {
     fun queueIdentifyProfile(
         profileIdentifier: String,
-        attributes: CustomAttributesCompat,
+        attributes: CustomAttributes,
         listener: TaskResultListener<Boolean>? = null,
     )
 
@@ -28,7 +27,7 @@ interface BackgroundQueue {
         profileIdentifier: String?,
         name: String,
         trackingType: TrackingType,
-        attributes: CustomAttributesCompat,
+        attributes: CustomAttributes,
         listener: TaskResultListener<Boolean>? = null,
     )
 
@@ -72,12 +71,13 @@ internal class BackgroundQueueImpl(
 ) : BackgroundQueue {
     override fun queueIdentifyProfile(
         profileIdentifier: String,
-        attributes: CustomAttributesCompat,
+        attributes: CustomAttributes,
         listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.IdentifyProfile(
             timestamp = dateTimeUtil.nowUnixTimestamp,
+            attributes = attributes,
         ),
         listener = listener,
     )
@@ -86,24 +86,24 @@ internal class BackgroundQueueImpl(
         profileIdentifier: String?,
         name: String,
         trackingType: TrackingType,
-        attributes: CustomAttributesCompat,
+        attributes: CustomAttributes,
         listener: TaskResultListener<Boolean>?,
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = when (trackingType) {
             TrackingType.EVENT -> Activity.Event(
                 timestamp = dateTimeUtil.nowUnixTimestamp,
-                attributes = attributes.fix(),
+                attributes = attributes,
                 name = name,
             )
             TrackingType.PAGE -> Activity.Page(
                 timestamp = dateTimeUtil.nowUnixTimestamp,
-                attributes = attributes.fix(),
+                attributes = attributes,
                 name = name,
             )
             TrackingType.SCREEN -> Activity.Screen(
                 timestamp = dateTimeUtil.nowUnixTimestamp,
-                attributes = attributes.fix(),
+                attributes = attributes,
                 name = name,
             )
         },
