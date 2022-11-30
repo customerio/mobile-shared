@@ -15,8 +15,6 @@ import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
 import io.customer.shared.util.PlatformUtil
 import kotlinx.datetime.Instant
-import local.TrackingTask
-import local.TrackingTaskQueries
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
