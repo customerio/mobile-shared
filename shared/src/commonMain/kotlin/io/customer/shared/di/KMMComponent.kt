@@ -38,7 +38,7 @@ class KMMComponent(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 jsonAdapter = staticComponent.jsonAdapter,
-                platformUtil = staticComponent.platformUtil,
+                databaseUtil = staticComponent.databaseUtil,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskQueries = databaseHelper.trackingTaskQueries,

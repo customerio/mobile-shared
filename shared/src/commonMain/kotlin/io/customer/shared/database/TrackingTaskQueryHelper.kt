@@ -13,7 +13,7 @@ import io.customer.shared.tracking.queue.success
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
-import io.customer.shared.util.PlatformUtil
+import io.customer.shared.util.DatabaseUtil
 import kotlinx.datetime.Instant
 
 /**
@@ -44,7 +44,7 @@ internal class TrackingTaskQueryHelperImpl(
     private val logger: Logger,
     private val dateTimeUtil: DateTimeUtil,
     private val jsonAdapter: JsonAdapter,
-    private val platformUtil: PlatformUtil,
+    private val databaseUtil: DatabaseUtil,
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskQueries: TrackingTaskQueries,
@@ -146,7 +146,7 @@ internal class TrackingTaskQueryHelperImpl(
             uuid = duplicateTask.uuid
             createdAt = duplicateTask.createdAt
         } else {
-            uuid = platformUtil.generateUUID()
+            uuid = databaseUtil.generateUUID()
             createdAt = currentTime
         }
 
