@@ -1,5 +1,7 @@
 package io.customer.shared.util
 
+import io.customer.shared.di.SDKComponent
+import io.customer.shared.serializer.CustomAttributeContextualSerializer
 import io.customer.shared.tracking.api.*
 import io.ktor.http.*
 import io.ktor.serialization.*
@@ -7,6 +9,7 @@ import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.StringFormat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.*
 import kotlinx.serialization.serializer
@@ -16,6 +19,12 @@ import kotlin.reflect.KClass
  * Abstract way to deserialize JSON strings without thinking about the library used.
  */
 interface JsonAdapter {
+    /**
+     * Converter interface in Kotlin serialization for parsing json in network calls mainly. All
+     * other classes should use [JsonAdapter] and avoid using the object directly.
+     */
+    val parser: StringFormat
+
     @Throws(Exception::class)
     fun <T : Any> toJSON(kClazz: KClass<T>, content: T): String
     fun <T : Any> toJSONOrNull(kClazz: KClass<T>, content: T): String?
@@ -26,9 +35,22 @@ interface JsonAdapter {
 }
 
 @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
-internal class JsonAdapterImpl : JsonAdapter {
-    private val parser = Json {
+internal class JsonAdapterImpl(
+    private val logger: Logger,
+    private val sdkComponent: SDKComponent,
+) : JsonAdapter {
+    override val parser = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
         explicitNulls = false
+        serializersModule = SerializersModule {
+            contextual(
+                CustomAttributeContextualSerializer(
+                    logger = logger,
+                    serializer = sdkComponent.customAttributeSerializer,
+                ),
+            )
+        }
     }
 
     @Throws(Exception::class)
