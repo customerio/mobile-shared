@@ -26,3 +26,10 @@ internal fun CoroutineExecutable.runSuspended(
     onError = { ex -> onCoroutineFailed((ex)) },
     block = block,
 )
+
+internal fun CoroutineExecutable.runOnMain(
+    block: suspend CoroutineScope.() -> Unit,
+): Job = executor.launchShared(
+    onError = { ex -> onCoroutineFailed((ex)) },
+    block = block,
+)

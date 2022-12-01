@@ -25,8 +25,8 @@ import kotlin.time.DurationUnit
  * - validate and update task status related to queue operations.
  */
 internal interface QueueWorker {
-    fun checkForPendingTasks(source: QueueTriggerSource)
-    fun sendAllPending()
+    suspend fun checkForPendingTasks(source: QueueTriggerSource)
+    suspend fun sendAllPending()
 }
 
 internal class QueueWorkerImpl(
@@ -63,12 +63,12 @@ internal class QueueWorkerImpl(
         releaseLock()
     }
 
-    override fun checkForPendingTasks(source: QueueTriggerSource) {
+    override suspend fun checkForPendingTasks(source: QueueTriggerSource) {
         processBatchTasks(isRecursive = false) { getTasksToBatch() }
     }
 
-    override fun sendAllPending() {
-        processBatchTasks(isRecursive = true) { trackingTaskQueryHelper.selectAllPendingTasks() }
+    override suspend fun sendAllPending() {
+        processBatchTasks(isRecursive = true) { trackingTaskQueryHelper.selectAllPendingTasks().getOrNull() }
     }
 
     private fun processBatchTasks(
@@ -106,8 +106,8 @@ internal class QueueWorkerImpl(
     }
 
     @Throws(Exception::class)
-    private fun getTasksToBatch(): List<TrackingTask>? {
-        val pendingTasks = trackingTaskQueryHelper.selectAllPendingTasks()
+    private suspend fun getTasksToBatch(): List<TrackingTask>? {
+        val pendingTasks = trackingTaskQueryHelper.selectAllPendingTasks().getOrNull()
         if (pendingTasks.isNullOrEmpty()) return null
 
         var triggerBatch = false

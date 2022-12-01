@@ -47,6 +47,7 @@ class KMMComponent(
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 platform = sdkComponent.platform,
+                executor = staticComponent.coroutineExecutor,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueWorker = queueWorker,
             )
@@ -73,7 +74,6 @@ class KMMComponent(
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 jsonAdapter = jsonAdapter,
                 databaseUtil = staticComponent.databaseUtil,
-                executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskDAO = databaseHelper.trackingTaskDAO,

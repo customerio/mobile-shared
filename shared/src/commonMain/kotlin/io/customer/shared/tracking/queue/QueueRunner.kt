@@ -7,6 +7,7 @@ import io.customer.shared.tracking.api.*
 import io.customer.shared.tracking.api.model.*
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.tracking.model.Activity
+import io.customer.shared.tracking.model.Task
 import io.customer.shared.tracking.model.TaskResponse
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
@@ -47,16 +48,18 @@ internal class QueueRunnerImpl(
         val activities = pendingTasks.map { task ->
             jsonAdapter.fromJSON(Activity::class, task.activityJson)
         }
-        val requests = activities.mapIndexed { index, activity ->
-            activity.toTrackingRequest(
-                identityType = workspace.identityType,
-                // QueueRunner should ideally never get tasks with null identity
-                profileIdentifier = pendingTasks[index].identity ?: "N/A",
-            )
-        }
-        val result = trackingHttpClient.track(batch = requests)
+        val result = trackingHttpClient.track(
+            tasks = activities.mapIndexed { index, activity ->
+                Task(
+                    identityType = workspace.identityType,
+                    profileIdentifier = pendingTasks[index].identity,
+                    activity = activity,
+                )
+            },
+        )
         val response = result.getOrNull()
-        processBatchResponse(pendingTasks = pendingTasks, response = response)
+        val tasksResponse = processBatchResponse(pendingTasks = pendingTasks, response = response)
+        trackingTaskQueryHelper.updateTasksStatusFromResponse(responses = tasksResponse)
         return response
     }
 
@@ -64,24 +67,17 @@ internal class QueueRunnerImpl(
     private fun processBatchResponse(
         pendingTasks: List<TrackingTask>,
         response: BatchTrackingResponse?,
-    ) {
-        val updateTasksStatus = { mapper: (index: Int, task: TrackingTask) -> TaskResponse ->
-            trackingTaskQueryHelper.updateTasksStatusFromResponse(
-                responses = pendingTasks.mapIndexed(mapper),
-            )
-        }
-
+    ): List<TaskResponse> {
         if (response == null) {
-            updateTasksStatus { _, task ->
+            return pendingTasks.mapIndexed { _, task ->
                 TaskResponse(uuid = task.uuid, taskStatus = QueueTaskStatus.FAILED)
             }
-            return
         }
 
         val responseStatusCode = response.statusCode.toLong()
         if (response.isSuccessful) {
             val errorMap = response.errors.associateBy { it.batchIndex ?: 0 }
-            updateTasksStatus { index, task ->
+            return pendingTasks.mapIndexed { index, task ->
                 val trackingError = errorMap[index]
                 TaskResponse(
                     uuid = task.uuid,
@@ -91,7 +87,7 @@ internal class QueueRunnerImpl(
                 )
             }
         } else {
-            updateTasksStatus { _, task ->
+            return pendingTasks.mapIndexed { _, task ->
                 TaskResponse(
                     uuid = task.uuid,
                     taskStatus = QueueTaskStatus.FAILED,
