@@ -9,7 +9,7 @@ import io.customer.shared.util.Logger
 import io.ktor.util.*
 
 /**
- * Helper class to provide http client params conveniently.
+ * Helper class to provide http client params from a single place.
  */
 internal interface HttpClientBuilder {
     val requestTimeoutMillis: Long
@@ -20,6 +20,11 @@ internal interface HttpClientBuilder {
      * Returns trackingApiUrl provided in config; fallbacks to tracking url from [Region].
      */
     val baseURL: String
+
+    /**
+     * The headers provided will be automatically included in all HTTP requests made using the
+     * client.
+     */
     val headers: Map<String, String>
 }
 

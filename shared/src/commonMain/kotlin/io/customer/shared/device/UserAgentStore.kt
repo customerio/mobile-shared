@@ -1,5 +1,8 @@
 package io.customer.shared.device
 
+/**
+ * Interface to make it easy for wrapper SDKs to provide user agent lazily to KMM.
+ */
 interface UserAgentStore {
     /**
      * buildUserAgent - To get `user-agent` header value. This value depends on SDK version

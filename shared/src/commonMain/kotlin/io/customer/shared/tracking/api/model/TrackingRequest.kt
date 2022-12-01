@@ -6,7 +6,11 @@ import io.customer.shared.common.CustomAttributes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.UseContextualSerialization
 
-// TODO: Find ways to break down into smaller classes and overcome kotlin type serialization issue
+/**
+ * Request class to be used for individual tracking requests.
+ */
+// TODO: Find ways to break down into smaller classes and overcome kotlin type issue in serialization
+// of sealed classes with generic parsing
 @kotlinx.serialization.Serializable
 internal class TrackingRequest(
     @SerialName("type") val type: String,

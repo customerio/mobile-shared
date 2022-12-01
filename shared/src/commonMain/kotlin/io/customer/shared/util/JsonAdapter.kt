@@ -9,6 +9,7 @@ import io.ktor.serialization.kotlinx.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.StringFormat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.*
 import kotlinx.serialization.serializer
@@ -18,10 +19,11 @@ import kotlin.reflect.KClass
  * Abstract way to deserialize JSON strings without thinking about the library used.
  */
 interface JsonAdapter {
-    fun configureKtorJson(
-        configuration: Configuration,
-        contentType: ContentType = ContentType.Application.Json,
-    )
+    /**
+     * Converter interface in Kotlin serialization for parsing json in network calls mainly. All
+     * other classes should use [JsonAdapter] and avoid using the object directly.
+     */
+    val parser: StringFormat
 
     @Throws(Exception::class)
     fun <T : Any> toJSON(kClazz: KClass<T>, content: T): String
@@ -37,7 +39,7 @@ internal class JsonAdapterImpl(
     private val logger: Logger,
     private val sdkComponent: SDKComponent,
 ) : JsonAdapter {
-    private val parser = Json {
+    override val parser = Json {
         ignoreUnknownKeys = true
         isLenient = true
         explicitNulls = false
@@ -49,10 +51,6 @@ internal class JsonAdapterImpl(
                 ),
             )
         }
-    }
-
-    override fun configureKtorJson(configuration: Configuration, contentType: ContentType) {
-        configuration.serialization(contentType, parser)
     }
 
     @Throws(Exception::class)

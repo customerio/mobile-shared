@@ -3,6 +3,7 @@ package io.customer.shared.tracking.api.model
 import io.customer.shared.sdk.meta.IdentityType
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.tracking.model.Activity
+import io.customer.shared.tracking.model.TrackingError
 import io.customer.shared.tracking.model.type
 
 internal val TrackingError.taskStatus: QueueTaskStatus
@@ -18,7 +19,7 @@ internal val TrackingErrorReason.isFixable: Boolean
     }
 
 internal val BatchTrackingResponse.isSuccessful: Boolean
-    get() = statusCode in 200..300
+    get() = statusCode in 200..299
 
 internal val BatchTrackingResponse.isServerUnavailable: Boolean
     get() = statusCode >= 500
@@ -68,7 +69,7 @@ internal fun Activity.toTrackingRequest(
     )
 }
 
-private val IdentityType.apiKey: String
+private val IdentityType.key: String
     get() = when (this) {
         IdentityType.CIO_ID -> "cio_id"
         IdentityType.AUTO_IDENTIFY -> "auto"
@@ -85,7 +86,7 @@ private fun Activity.TrackingRequest(
 ) = TrackingRequest(
     type = type,
     timestamp = timestamp,
-    identifiers = mapOf(identityType.apiKey to profileIdentifier),
+    identifiers = mapOf(identityType.key to profileIdentifier),
     attributes = attributes,
     name = name,
     device = device,

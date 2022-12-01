@@ -1,5 +1,6 @@
 package io.customer.shared.serializer
 
+import io.customer.shared.serializer.CustomAttributeContextualSerializer.Companion.DEFAULT_FALLBACK_VALUE
 import io.customer.shared.util.Logger
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -8,7 +9,9 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
 /**
- * Contextual serializer for Kotlin serialization to add support for generic objects.
+ * Contextual serializer for Kotlin serialization to add support for generic objects. The
+ * serializer assures the parsing is safe and fallbacks to [DEFAULT_FALLBACK_VALUE] where it
+ * fails to process.
  *
  * To support [Any] object in the class, the class file should add the following annotation
  *
@@ -22,11 +25,10 @@ internal class CustomAttributeContextualSerializer(
     override val descriptor: SerialDescriptor = delegateSerializer.descriptor
 
     override fun serialize(encoder: Encoder, value: Any) {
-        val jsonElement = toJsonElementOrNull(value = value).let { json ->
+        val jsonElement = toJsonElementOrNull(value = value).also { json ->
             if (json == null) {
                 logger.error("Unable to serialize $value, replacing with $DEFAULT_FALLBACK_VALUE")
             }
-            return@let json
         } ?: JsonPrimitive(value = DEFAULT_FALLBACK_VALUE)
         encoder.encodeSerializableValue(delegateSerializer, jsonElement)
     }
@@ -41,6 +43,12 @@ internal class CustomAttributeContextualSerializer(
     }
 }
 
+/**
+ * Maps objects to json elements. Basic primitive types and collections are supported. All
+ * unknown object types mapped using [CustomAttributeSerializer] if available.
+ *
+ * @return mapped [JsonElement] if successful; null otherwise.
+ */
 private fun CustomAttributeContextualSerializer.toJsonElementOrNull(value: Any?): JsonElement? {
     return when (value) {
         null -> JsonNull
@@ -60,6 +68,13 @@ private fun CustomAttributeContextualSerializer.toJsonElementOrNull(value: Any?)
     }
 }
 
+/**
+ * The method tries to map [JsonElement] to best matching Kotlin primitive types. Mainly
+ * responsible for mapping collections, all non-null primitive types are mapped using
+ * [toAnyValueOrNull] for [JsonPrimitive].
+ *
+ * @return mapped object if successful; null otherwise.
+ */
 private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonElement: JsonElement): Any? {
     return when (jsonElement) {
         is JsonNull -> null
@@ -71,6 +86,13 @@ private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonElement: Js
     }
 }
 
+/**
+ * The method tries to map [JsonPrimitive] to best matching Kotlin primitive types, if it fails to
+ * map the value to any type, the value is passed to [CustomAttributeSerializer] to add
+ * support for unknown objects.
+ *
+ * @return mapped object if successful; null otherwise.
+ */
 private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonPrimitive: JsonPrimitive): Any? {
     val content = jsonPrimitive.content
     return when {
@@ -79,8 +101,8 @@ private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonPrimitive: 
         else -> content.toBooleanStrictOrNull()
             ?: content.toIntOrNull()
             ?: content.toLongOrNull()
-            ?: content.toDoubleOrNull()
             ?: content.toFloatOrNull()
+            ?: content.toDoubleOrNull()
             ?: serializer?.deserialize(json = content)
     }
 }
