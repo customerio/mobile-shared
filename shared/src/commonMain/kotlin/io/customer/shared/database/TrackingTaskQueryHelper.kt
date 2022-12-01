@@ -10,7 +10,6 @@ import io.customer.shared.util.DatabaseUtil
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
-import kotlinx.datetime.Instant
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
@@ -50,45 +49,6 @@ internal class TrackingTaskQueryHelperImpl(
     }
 
     /**
-     * Looks for unsent duplicate tasks that can be merged and may not be required to be sent as
-     * multiple events e.g. Identify, Add Device, etc.
-     *
-     * For private use only, should only be called within database transaction.
-     */
-    private fun Task.getDuplicateOrNull(): TrackingTask? = kotlin.runCatching {
-        return@runCatching if (activity.canBeMerged()) {
-            trackingTaskDAO.selectByType(
-                type = activity.type,
-                siteId = workspace.siteId,
-            ).executeAsOneOrNull()?.takeUnless { task ->
-                task.queueTaskStatus in listOf(
-                    QueueTaskStatus.QUEUED,
-                    QueueTaskStatus.SENDING,
-                    QueueTaskStatus.SENT,
-                )
-            }
-        } else null
-    }.getOrNull()
-
-    /**
-     * Merges activities that are merge-able, e.g. attributes, etc.
-     *
-     * For private use only, should only be called within database transaction.
-     */
-    private fun TrackingTask.mergeActivities(activity: Activity): Activity? {
-        var mergedActivity: Activity? = null
-        kotlin.runCatching {
-            activity.merge(other = jsonAdapter.fromJSON(Activity::class, activityJson))
-        }.fold(
-            onSuccess = { value -> mergedActivity = value },
-            onFailure = { ex ->
-                logger.fatal("Failed to parse activity ${type}, model version ${activityModelVersion}. Reason: ${ex.message}")
-            },
-        )
-        return mergedActivity
-    }
-
-    /**
      * Updates status of tasks with the given values.
      *
      * For private use only, should only be called within database transaction.
@@ -119,27 +79,14 @@ internal class TrackingTaskQueryHelperImpl(
      */
     private fun insertTaskInternal(task: Task) = kotlin.runCatching {
         val currentTime = dateTimeUtil.now
-        val duplicateTask = task.getDuplicateOrNull()
-        val mergedActivity = duplicateTask?.mergeActivities(activity = task.activity)
-        val activity = mergedActivity ?: task.activity
-
-        val uuid: String
-        val createdAt: Instant
-        if (mergedActivity != null) {
-            // since we are updating pending task
-            uuid = duplicateTask.uuid
-            createdAt = duplicateTask.createdAt
-        } else {
-            uuid = databaseUtil.generateUUID()
-            createdAt = currentTime
-        }
+        val activity = task.activity
 
         val json = jsonAdapter.toJSON(kClazz = Activity::class, content = activity)
         trackingTaskDAO.insertOrReplaceTask(
-            uuid = uuid,
+            uuid = databaseUtil.generateUUID(),
             siteId = workspace.siteId,
             type = activity.type,
-            createdAt = createdAt,
+            createdAt = currentTime,
             updatedAt = currentTime,
             identity = task.profileIdentifier,
             identityType = workspace.identityType,
