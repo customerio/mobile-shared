@@ -41,7 +41,7 @@ class KMMComponent(
                 databaseUtil = staticComponent.databaseUtil,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
-                trackingTaskQueries = databaseHelper.trackingTaskQueries,
+                trackingTaskDAO = databaseHelper.trackingTaskDAO,
             )
         }
 }

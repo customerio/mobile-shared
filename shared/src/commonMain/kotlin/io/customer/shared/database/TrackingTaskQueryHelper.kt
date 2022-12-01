@@ -1,19 +1,15 @@
 package io.customer.shared.database
 
 import com.squareup.sqldelight.TransactionWithReturn
-import io.customer.shared.runSuspended
 import io.customer.shared.sdk.config.BackgroundQueueConfig
 import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.constant.Priority
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.tracking.model.*
-import io.customer.shared.tracking.queue.TaskResultListener
-import io.customer.shared.tracking.queue.failure
-import io.customer.shared.tracking.queue.success
+import io.customer.shared.util.DatabaseUtil
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
-import io.customer.shared.util.DatabaseUtil
 import kotlinx.datetime.Instant
 
 /**
@@ -21,23 +17,11 @@ import kotlinx.datetime.Instant
  * class to provide abstraction and keep communication with database easier.
  */
 internal interface TrackingTaskQueryHelper {
-    fun insertTask(
-        task: Task,
-        listener: TaskResultListener<Boolean>? = null,
-    )
-
-    fun updateTasksStatus(
-        status: QueueTaskStatus,
-        tasks: List<TrackingTask>,
-    ): Boolean
-
-    fun updateTasksStatusFromResponse(
-        responses: List<TaskResponse>,
-    ): Boolean
-
-    fun selectAllPendingTasks(): List<TrackingTask>?
-
-    fun clearAllExpiredTasks(listener: TaskResultListener<Boolean>? = null)
+    suspend fun insertTask(task: Task): Result<Unit>
+    suspend fun updateTasksStatus(status: QueueTaskStatus, tasks: List<TrackingTask>): Result<Unit>
+    suspend fun updateTasksStatusFromResponse(responses: List<TaskResponse>): Result<Unit>
+    suspend fun selectAllPendingTasks(): Result<List<TrackingTask>?>
+    suspend fun clearAllExpiredTasks(): Result<Unit>
 }
 
 internal class TrackingTaskQueryHelperImpl(
@@ -47,9 +31,9 @@ internal class TrackingTaskQueryHelperImpl(
     private val databaseUtil: DatabaseUtil,
     private val workspace: Workspace,
     private val backgroundQueueConfig: BackgroundQueueConfig,
-    private val trackingTaskQueries: TrackingTaskQueries,
+    private val trackingTaskDAO: TrackingTaskQueries,
 ) : TrackingTaskQueryHelper {
-    private val selectAllPendingQuery = trackingTaskQueries.selectAllPendingTasks(
+    private val selectAllPendingQuery = trackingTaskDAO.selectAllPendingTasks(
         status = listOf(QueueTaskStatus.PENDING, QueueTaskStatus.FAILED),
         limit = backgroundQueueConfig.batchTasksMax.toLong(),
         siteId = workspace.siteId,
@@ -62,7 +46,7 @@ internal class TrackingTaskQueryHelperImpl(
     private fun <Result : Any?> runInTransaction(
         block: TransactionWithReturn<Result>.() -> Result,
     ): Result {
-        return trackingTaskQueries.transactionWithResult(noEnclosing = false) { block() }
+        return trackingTaskDAO.transactionWithResult(noEnclosing = false) { block() }
     }
 
     /**
@@ -73,7 +57,7 @@ internal class TrackingTaskQueryHelperImpl(
      */
     private fun Task.getDuplicateOrNull(): TrackingTask? = kotlin.runCatching {
         return@runCatching if (activity.canBeMerged()) {
-            trackingTaskQueries.selectByType(
+            trackingTaskDAO.selectByType(
                 type = activity.type,
                 siteId = workspace.siteId,
             ).executeAsOneOrNull()?.takeUnless { task ->
@@ -112,10 +96,10 @@ internal class TrackingTaskQueryHelperImpl(
     private fun updateTasksStatusInternal(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
-    ): Boolean {
+    ): Result<Unit> {
         val taskIds = tasks.map { task -> task.uuid }
         val result = kotlin.runCatching {
-            trackingTaskQueries.updateTasksStatus(
+            trackingTaskDAO.updateTasksStatus(
                 updatedAt = dateTimeUtil.now,
                 status = status,
                 ids = taskIds,
@@ -125,7 +109,7 @@ internal class TrackingTaskQueryHelperImpl(
         result.onFailure { ex ->
             logger.error("Unable to update status $status for tasks ${taskIds.joinToString(separator = ",")}. Reason: ${ex.message}")
         }
-        return result.isSuccess
+        return result
     }
 
     /**
@@ -151,7 +135,7 @@ internal class TrackingTaskQueryHelperImpl(
         }
 
         val json = jsonAdapter.toJSON(kClazz = Activity::class, content = activity)
-        trackingTaskQueries.insertOrReplaceTask(
+        trackingTaskDAO.insertOrReplaceTask(
             uuid = uuid,
             siteId = workspace.siteId,
             type = activity.type,
@@ -167,7 +151,7 @@ internal class TrackingTaskQueryHelperImpl(
         logger.debug("Adding task ${activity.type} to queue successful")
 
         if (activity is Activity.IdentifyProfile) {
-            trackingTaskQueries.updateAllAnonymousTasks(
+            trackingTaskDAO.updateAllAnonymousTasks(
                 updatedAt = currentTime,
                 identifier = task.profileIdentifier,
                 identityType = workspace.identityType,
@@ -175,36 +159,28 @@ internal class TrackingTaskQueryHelperImpl(
             )
             logger.debug("Updating identifier with ${task.profileIdentifier} and identity type ${workspace.identityType}")
         }
-        return@runCatching true
     }
 
-    override fun insertTask(task: Task, listener: TaskResultListener<Boolean>?) {
-        runSuspended {
-            val result: Result<Boolean> = runInTransaction { insertTaskInternal(task = task) }
-            result.fold(
-                onSuccess = { listener?.success() },
-                onFailure = { ex ->
-                    logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
-                    listener?.failure(exception = ex)
-                },
-            )
-        }
+    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction {
+        insertTaskInternal(task = task)
+    }.onFailure { ex ->
+        logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
     }
 
-    override fun updateTasksStatus(
+    override suspend fun updateTasksStatus(
         status: QueueTaskStatus,
         tasks: List<TrackingTask>,
-    ): Boolean = runInTransaction {
+    ): Result<Unit> = runInTransaction {
         updateTasksStatusInternal(status = status, tasks = tasks)
     }
 
-    override fun updateTasksStatusFromResponse(
+    override suspend fun updateTasksStatusFromResponse(
         responses: List<TaskResponse>,
-    ): Boolean = runInTransaction {
-        val result = kotlin.runCatching {
+    ): Result<Unit> = runInTransaction {
+        kotlin.runCatching {
             val updatedAtTime = dateTimeUtil.now
             responses.forEach { response ->
-                trackingTaskQueries.updateTaskStatusFromResponse(
+                trackingTaskDAO.updateTaskStatusFromResponse(
                     updatedAt = updatedAtTime,
                     status = response.taskStatus,
                     statusCode = response.statusCode,
@@ -214,39 +190,30 @@ internal class TrackingTaskQueryHelperImpl(
                     retryAttempts = if (response.shouldCountAsRetry) 1 else 0,
                 )
             }
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Unable to updated response status for ${responses.size} pending tasks due to: ${ex.message}")
         }
-        return@runInTransaction result.isSuccess
     }
 
-    override fun selectAllPendingTasks(): List<TrackingTask>? = runInTransaction {
+    override suspend fun selectAllPendingTasks(): Result<List<TrackingTask>?> = runInTransaction {
         val pendingTasks = selectAllPendingQuery.executeAsList()
         val result = updateTasksStatusInternal(
             status = QueueTaskStatus.QUEUED,
             tasks = pendingTasks,
         )
-        return@runInTransaction pendingTasks.takeIf { result }
+        val exception = result.exceptionOrNull()
+        return@runInTransaction if (exception == null) Result.success(pendingTasks)
+        else Result.failure(exception)
     }
 
-    override fun clearAllExpiredTasks(listener: TaskResultListener<Boolean>?) {
-        runSuspended {
-            val result: Result<Unit> = runInTransaction {
-                kotlin.runCatching {
-                    trackingTaskQueries.clearAllTasksWithStatus(
-                        status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
-                        siteId = workspace.siteId,
-                    )
-                }
-            }
-            result.fold(
-                onSuccess = { listener?.success() },
-                onFailure = { ex ->
-                    logger.error("Unable to clear expired tasks from queue. Reason: ${ex.message}")
-                    listener?.failure(exception = ex)
-                },
+    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction {
+        kotlin.runCatching {
+            trackingTaskDAO.clearAllTasksWithStatus(
+                status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),
+                siteId = workspace.siteId,
             )
         }
+    }.onFailure { ex ->
+        logger.error("Unable to clear expired tasks from queue. Reason: ${ex.message}")
     }
 }
