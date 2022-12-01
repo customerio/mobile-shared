@@ -13,7 +13,7 @@ internal class DatabaseHelper(databaseDriverFactory: DatabaseDriverFactory) {
             errorReasonAdapter = EnumColumnAdapter(),
         ),
     )
-    val trackingTaskQueries = database.trackingTaskQueries
+    val trackingTaskDAO = database.trackingTaskQueries
 
     companion object {
         const val DATABASE_NAME = "customerio.db"

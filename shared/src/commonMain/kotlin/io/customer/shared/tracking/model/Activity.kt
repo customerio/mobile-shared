@@ -32,15 +32,6 @@ internal sealed interface Activity {
     @SerialName("modelVersion")
     val modelVersion: Long
 
-    /**
-     * Merges similar activities to a single object. This is helpful when we receive similar events
-     * in a shorter span and want to merge them together before sending to the server.
-     *
-     * The receiver takes higher priority and overrides any value in the passed activity where
-     * needed.
-     */
-    fun merge(other: Activity): Activity
-
     @kotlinx.serialization.Serializable
     @SerialName(ActivityType.ADD_DEVICE)
     data class AddDevice(
@@ -49,8 +40,6 @@ internal sealed interface Activity {
     ) : Activity {
         override val modelVersion: Long = 1
         override val attributes: CustomAttributes? = null
-
-        override fun merge(other: Activity) = copy()
     }
 
     @kotlinx.serialization.Serializable
@@ -61,8 +50,6 @@ internal sealed interface Activity {
         override val modelVersion: Long = 1
         override val timestamp: Long? = null
         override val attributes: CustomAttributes? = null
-
-        override fun merge(other: Activity) = copy()
     }
 
     @kotlinx.serialization.Serializable
@@ -72,10 +59,6 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
-
-        override fun merge(other: Activity) = copy(
-            attributes = attributes.merge(other = other.attributes),
-        )
     }
 
     @kotlinx.serialization.Serializable
@@ -86,10 +69,6 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
-
-        override fun merge(other: Activity) = copy(
-            attributes = attributes.merge(other = other.attributes),
-        )
     }
 
     @kotlinx.serialization.Serializable
@@ -100,10 +79,6 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
-
-        override fun merge(other: Activity) = copy(
-            attributes = attributes.merge(other = other.attributes),
-        )
     }
 
     @kotlinx.serialization.Serializable
@@ -114,10 +89,6 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
-
-        override fun merge(other: Activity) = copy(
-            attributes = attributes.merge(other = other.attributes),
-        )
     }
 
     @kotlinx.serialization.Serializable
@@ -130,9 +101,5 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
-
-        override fun merge(other: Activity) = copy(
-            attributes = attributes.merge(other = other.attributes),
-        )
     }
 }

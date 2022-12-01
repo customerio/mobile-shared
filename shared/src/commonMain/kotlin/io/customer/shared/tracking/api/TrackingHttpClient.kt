@@ -1,11 +1,10 @@
 package io.customer.shared.tracking.api
 
-import io.customer.shared.sdk.meta.IdentityType
 import io.customer.shared.tracking.api.model.BatchTrackingRequestBody
 import io.customer.shared.tracking.api.model.BatchTrackingResponse
 import io.customer.shared.tracking.api.model.BatchTrackingResponseBody
 import io.customer.shared.tracking.api.model.toTrackingRequest
-import io.customer.shared.tracking.model.Activity
+import io.customer.shared.tracking.model.Task
 import io.customer.shared.util.Logger
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -14,31 +13,30 @@ import io.ktor.http.*
 
 /**
  * HTTP client interface responsible for making all network calls in the SDK.
+ *
+ * The class doesn't perform any validation and is only responsible for transforming and passing
+ * filtered data to the server.
  */
 internal interface TrackingHttpClient {
-    suspend fun track(
-        identityType: IdentityType,
-        profileIdentifier: String,
-        activities: List<Activity>,
-    ): Result<BatchTrackingResponse>
+    /**
+     * Dispatch all tasks passed to the server in a single batch call.
+     */
+    suspend fun track(tasks: List<Task>): Result<BatchTrackingResponse>
 }
 
 internal class TrackingHttpClientImpl(
     private val logger: Logger,
     private val httpClient: HttpClient,
 ) : TrackingHttpClient {
-    override suspend fun track(
-        identityType: IdentityType,
-        profileIdentifier: String,
-        activities: List<Activity>,
-    ): Result<BatchTrackingResponse> {
+    override suspend fun track(tasks: List<Task>): Result<BatchTrackingResponse> {
         val result = kotlin.runCatching {
-            logger.debug("Batching ${activities.size} track events")
+            logger.debug("Batching ${tasks.size} track events")
             val requestBody = BatchTrackingRequestBody(
-                batch = activities.map { activity ->
-                    activity.toTrackingRequest(
-                        identityType = identityType,
-                        profileIdentifier = profileIdentifier,
+                batch = tasks.map { task ->
+                    // Ideally, tasks passed here should never have invalid identifier
+                    task.activity.toTrackingRequest(
+                        identityType = task.identityType,
+                        profileIdentifier = task.profileIdentifier.orEmpty(),
                     )
                 },
             )

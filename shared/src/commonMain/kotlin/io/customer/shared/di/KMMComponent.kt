@@ -76,7 +76,7 @@ class KMMComponent(
                 executor = staticComponent.coroutineExecutor,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
-                trackingTaskQueries = databaseHelper.trackingTaskQueries,
+                trackingTaskDAO = databaseHelper.trackingTaskDAO,
             )
         }
 
