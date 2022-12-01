@@ -7,12 +7,6 @@ package io.customer.shared.sdk.meta
  */
 enum class IdentityType {
     /**
-     * Let the server identify the type automatically. However, this option should be avoided.
-     * Prefer specifying IdentityType explicitly.
-     */
-    AUTO_IDENTIFY,
-
-    /**
      * Sets the user identifier as cio_id in user profile.
      */
     CIO_ID,
