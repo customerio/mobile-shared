@@ -74,34 +74,31 @@ class KMMComponent(
             )
         }
 
-    private val httpClientBuilder: HttpClientBuilder
-        get() = getNewInstance {
-            HttpClientBuilderImpl(
-                logger = staticComponent.logger,
-                sdkLogLevel = sdkComponent.customerIOConfig.sdkLogLevel,
-                workspace = sdkComponent.customerIOConfig.workspace,
-                networkConfig = sdkComponent.customerIOConfig.network,
-                userAgentStore = sdkComponent.userAgentStore,
-            )
-        }
+    private fun getHttpClientBuilder(): HttpClientBuilder = HttpClientBuilderImpl(
+        logger = staticComponent.logger,
+        sdkLogLevel = sdkComponent.customerIOConfig.sdkLogLevel,
+        workspace = sdkComponent.customerIOConfig.workspace,
+        networkConfig = sdkComponent.customerIOConfig.network,
+        userAgentStore = sdkComponent.userAgentStore,
+    )
 
     private val httpClient: HttpClient
         get() = getNewInstance {
-            val requestBuilder = httpClientBuilder
+            val clientBuilder = getHttpClientBuilder()
             return@getNewInstance HttpClient {
                 install(Logging) {
-                    logger = requestBuilder.clientLogger
-                    level = requestBuilder.clientLogLevel
+                    logger = clientBuilder.clientLogger
+                    level = clientBuilder.clientLogLevel
                 }
                 install(ContentNegotiation) {
                     serialization(ContentType.Application.Json, jsonAdapter.parser)
                 }
                 defaultRequest {
-                    url(urlString = requestBuilder.baseURL)
-                    requestBuilder.headers.forEach { (key, value) -> header(key, value) }
+                    url(urlString = clientBuilder.baseURL)
+                    clientBuilder.headers.forEach { (key, value) -> header(key, value) }
                 }
                 install(HttpTimeout) {
-                    requestTimeoutMillis = requestBuilder.requestTimeoutMillis
+                    requestTimeoutMillis = clientBuilder.requestTimeoutMillis
                 }
             }
         }
