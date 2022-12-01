@@ -72,7 +72,6 @@ internal fun Activity.toTrackingRequest(
 private val IdentityType.key: String
     get() = when (this) {
         IdentityType.CIO_ID -> "cio_id"
-        IdentityType.AUTO_IDENTIFY -> "auto"
         IdentityType.ID -> "id"
         IdentityType.EMAIL -> "email"
     }
