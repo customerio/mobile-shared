@@ -4,6 +4,6 @@ import platform.Foundation.NSUUID
 
 internal actual fun getDatabaseUtil(): DatabaseUtil = IOSDatabaseUtil()
 
-internal class IOSDatabaseUtil : DatabaseUtil {
+internal class iOSDatabaseUtil : DatabaseUtil {
     override fun generateUUID(): String = NSUUID().UUIDString()
 }
