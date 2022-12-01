@@ -108,7 +108,7 @@ internal class TrackingTaskQueryHelperImpl(
         }
     }
 
-    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction {
+    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction<Result<Unit>> {
         insertTaskInternal(task = task)
     }.onFailure { ex ->
         logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
@@ -153,7 +153,7 @@ internal class TrackingTaskQueryHelperImpl(
         else Result.failure(exception)
     }
 
-    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction {
+    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction<Result<Unit>> {
         kotlin.runCatching {
             trackingTaskDAO.clearAllTasksWithStatus(
                 status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),

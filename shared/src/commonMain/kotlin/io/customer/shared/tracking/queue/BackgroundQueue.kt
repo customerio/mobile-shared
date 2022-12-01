@@ -81,7 +81,7 @@ internal class BackgroundQueueImpl(
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.IdentifyProfile(
-            timestamp = dateTimeUtil.nowUnixTimestamp,
+            timestamp = dateTimeUtil.nowEpochSeconds,
             attributes = attributes,
         ),
         listener = listener,
@@ -97,17 +97,17 @@ internal class BackgroundQueueImpl(
         profileIdentifier = profileIdentifier,
         activity = when (trackingType) {
             TrackingType.EVENT -> Activity.Event(
-                timestamp = dateTimeUtil.nowUnixTimestamp,
+                timestamp = dateTimeUtil.nowEpochSeconds,
                 attributes = attributes,
                 name = name,
             )
             TrackingType.PAGE -> Activity.Page(
-                timestamp = dateTimeUtil.nowUnixTimestamp,
+                timestamp = dateTimeUtil.nowEpochSeconds,
                 attributes = attributes,
                 name = name,
             )
             TrackingType.SCREEN -> Activity.Screen(
-                timestamp = dateTimeUtil.nowUnixTimestamp,
+                timestamp = dateTimeUtil.nowEpochSeconds,
                 attributes = attributes,
                 name = name,
             )
@@ -122,7 +122,7 @@ internal class BackgroundQueueImpl(
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.AddDevice(
-            timestamp = dateTimeUtil.nowUnixTimestamp,
+            timestamp = dateTimeUtil.nowEpochSeconds,
             device = device.copy(
                 platform = platform.name,
             ),
@@ -156,7 +156,7 @@ internal class BackgroundQueueImpl(
             metricEvent = event,
             deliveryId = deliveryId,
             deviceToken = deviceToken,
-            timestamp = dateTimeUtil.nowUnixTimestamp,
+            timestamp = dateTimeUtil.nowEpochSeconds,
         ),
         listener = listener,
     )
@@ -171,7 +171,7 @@ internal class BackgroundQueueImpl(
             metricEvent = event,
             deliveryId = deliveryId,
             deviceToken = null,
-            timestamp = dateTimeUtil.nowUnixTimestamp,
+            timestamp = dateTimeUtil.nowEpochSeconds,
         ),
         listener = listener,
     )
