@@ -46,7 +46,7 @@ data class Workspace constructor(
      * auto initializing the SDK.
      */
     internal object DefaultValue {
-        val IDENTITY_TYPE = IdentityType.AUTO_IDENTIFY
+        val IDENTITY_TYPE = IdentityType.ID
         val REGION = Region.US
     }
 }
