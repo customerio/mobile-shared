@@ -5,7 +5,7 @@ plugins {
     id("com.squareup.sqldelight")
     id("maven-publish")
     kotlin("plugin.serialization") version "1.7.20"
-    id("co.touchlab.faktory.kmmbridge") version "0.3.2"
+    id("co.touchlab.faktory.kmmbridge") version "0.3.3"
 }
 
 repositories {
