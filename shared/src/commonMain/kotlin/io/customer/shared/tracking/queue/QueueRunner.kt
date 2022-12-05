@@ -24,15 +24,14 @@ internal class QueueRunnerImpl(
     private val trackingHttpClient: TrackingHttpClient,
 ) : QueueRunner {
     override suspend fun runQueueForTasks(pendingTasks: List<TrackingTask>): Result<Boolean> {
-        val result = kotlin.runCatching {
+        return kotlin.runCatching {
             trackingTaskQueryHelper.updateTasksStatus(
                 status = QueueTaskStatus.SENDING,
                 tasks = pendingTasks,
             )
             val response = processBatchTasks(pendingTasks = pendingTasks)
             return@runCatching response != null && !response.isServerUnavailable
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Failed to run queue for ${pendingTasks.size} tasks with error: ${ex.message}")
             trackingTaskQueryHelper.updateTasksStatus(
                 status = QueueTaskStatus.FAILED,
@@ -40,7 +39,6 @@ internal class QueueRunnerImpl(
             )
             ex.printStackTrace()
         }
-        return result
     }
 
     @Throws(Exception::class)

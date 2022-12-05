@@ -8,6 +8,8 @@ import io.customer.shared.tracking.api.TrackingHttpClientImpl
 import io.customer.shared.tracking.queue.*
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.JsonAdapterImpl
+import io.customer.shared.work.CoroutineQueueTimer
+import io.customer.shared.work.QueueTimer
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -91,6 +93,14 @@ class KMMComponent(
             )
         }
 
+    internal val queueTimer: QueueTimer
+        get() = getNewInstance {
+            CoroutineQueueTimer(
+                logger = staticComponent.logger,
+                executor = staticComponent.coroutineExecutor,
+            )
+        }
+
     internal val queueWorker: QueueWorker
         get() = getSingletonInstance {
             QueueWorkerImpl(
@@ -100,6 +110,7 @@ class KMMComponent(
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueRunner = queueRunner,
+                queueTimer = queueTimer,
             )
         }
 

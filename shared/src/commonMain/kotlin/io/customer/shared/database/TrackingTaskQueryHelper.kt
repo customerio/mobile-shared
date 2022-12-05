@@ -58,18 +58,16 @@ internal class TrackingTaskQueryHelperImpl(
         tasks: List<TrackingTask>,
     ): Result<Unit> {
         val taskIds = tasks.map { task -> task.uuid }
-        val result = kotlin.runCatching {
+        return kotlin.runCatching {
             trackingTaskDAO.updateTasksStatus(
                 updatedAt = dateTimeUtil.now,
                 status = status,
                 ids = taskIds,
                 siteId = workspace.siteId,
             )
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Unable to update status $status for tasks ${taskIds.joinToString(separator = ",")}. Reason: ${ex.message}")
         }
-        return result
     }
 
     /**

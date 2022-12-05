@@ -14,7 +14,8 @@ import io.customer.shared.util.Logger
 import io.customer.shared.work.CoroutineExecutable
 import io.customer.shared.work.CoroutineExecutor
 import io.customer.shared.work.runOnMain
-import io.customer.shared.work.runSuspended
+import io.customer.shared.work.runOnBackground
+import kotlinx.coroutines.Job
 
 /**
  * Background queue is responsible for queuing tasks to trigger when needed. It works asynchronously
@@ -25,7 +26,7 @@ interface BackgroundQueue {
         profileIdentifier: String,
         attributes: CustomAttributes,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
     fun queueTrack(
         profileIdentifier: String?,
@@ -33,36 +34,36 @@ interface BackgroundQueue {
         trackingType: TrackingType,
         attributes: CustomAttributes,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
     fun queueRegisterDevice(
         profileIdentifier: String?,
         device: Device,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
     fun queueDeletePushToken(
         profileIdentifier: String?,
         deviceToken: String,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
     fun queueTrackMetric(
         deliveryId: String,
         deviceToken: String,
         event: MetricEvent,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
     fun queueTrackInAppMetric(
         deliveryId: String,
         event: MetricEvent,
         listener: TaskResultListener<Unit>? = null,
-    )
+    ): Job
 
-    fun sendAllPending()
+    fun sendAllPending(): Job
 
-    fun deleteExpiredTasks()
+    fun deleteExpiredTasks(): Job
 }
 
 internal class BackgroundQueueImpl(
@@ -180,29 +181,23 @@ internal class BackgroundQueueImpl(
         profileIdentifier: String?,
         activity: Activity,
         listener: TaskResultListener<Unit>? = null,
-    ) {
-        runSuspended {
-            val result = trackingTaskQueryHelper.insertTask(
-                task = Task(
-                    profileIdentifier = profileIdentifier,
-                    identityType = workspace.identityType,
-                    activity = activity,
-                ),
-            )
-            queueWorker.checkForPendingTasks(source = QueueTriggerSource.DATABASE)
-            runOnMain { listener?.onComplete(result) }
-        }
+    ) = runOnBackground {
+        val result = trackingTaskQueryHelper.insertTask(
+            task = Task(
+                profileIdentifier = profileIdentifier,
+                identityType = workspace.identityType,
+                activity = activity,
+            ),
+        )
+        queueWorker.checkForPendingTasks(source = QueueTriggerSource.DATABASE)
+        listener?.run { runOnMain { onComplete(result) } }
     }
 
-    override fun sendAllPending() {
-        runSuspended {
-            queueWorker.sendAllPending()
-        }
+    override fun sendAllPending() = runOnBackground {
+        queueWorker.sendAllPending()
     }
 
-    override fun deleteExpiredTasks() {
-        runSuspended {
-            trackingTaskQueryHelper.clearAllExpiredTasks()
-        }
+    override fun deleteExpiredTasks() = runOnBackground {
+        trackingTaskQueryHelper.clearAllExpiredTasks()
     }
 }

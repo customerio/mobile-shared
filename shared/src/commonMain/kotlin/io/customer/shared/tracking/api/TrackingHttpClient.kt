@@ -29,7 +29,7 @@ internal class TrackingHttpClientImpl(
     private val httpClient: HttpClient,
 ) : TrackingHttpClient {
     override suspend fun track(tasks: List<Task>): Result<BatchTrackingResponse> {
-        val result = kotlin.runCatching {
+        return kotlin.runCatching {
             logger.debug("Batching ${tasks.size} track events")
             val requestBody = BatchTrackingRequestBody(
                 batch = tasks.map { task ->
@@ -51,11 +51,9 @@ internal class TrackingHttpClientImpl(
             )
             logger.debug("Batch tracking successful with code: ${response.statusCode}")
             return@runCatching response
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Batch tracking failed with error: ${ex.message}")
             ex.printStackTrace()
         }
-        return result
     }
 }

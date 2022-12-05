@@ -20,16 +20,16 @@ internal interface CoroutineExecutable {
     fun onCoroutineFailed(exception: Throwable) {}
 }
 
-internal fun CoroutineExecutable.runSuspended(
+internal fun CoroutineExecutable.runOnBackground(
     block: suspend CoroutineScope.() -> Unit,
-): Job = executor.launchShared(
+): Job = executor.launchOnBackground(
     onError = { ex -> onCoroutineFailed((ex)) },
     block = block,
 )
 
 internal fun CoroutineExecutable.runOnMain(
     block: suspend CoroutineScope.() -> Unit,
-): Job = executor.launchShared(
+): Job = executor.launchOnMain(
     onError = { ex -> onCoroutineFailed((ex)) },
     block = block,
 )

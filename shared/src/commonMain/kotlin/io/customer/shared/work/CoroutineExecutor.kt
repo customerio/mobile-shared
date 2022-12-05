@@ -1,6 +1,5 @@
 package io.customer.shared.work
 
-import io.customer.shared.common.LazyReference
 import io.customer.shared.util.Dispatcher
 import io.customer.shared.util.Logger
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -14,7 +13,12 @@ import kotlinx.coroutines.launch
  * with other classes.
  */
 internal interface CoroutineExecutor {
-    fun launchShared(
+    fun launchOnBackground(
+        onError: (Throwable) -> Unit = {},
+        block: suspend CoroutineScope.() -> Unit,
+    ): Job
+
+    fun launchOnMain(
         onError: (Throwable) -> Unit = {},
         block: suspend CoroutineScope.() -> Unit,
     ): Job
@@ -24,28 +28,55 @@ internal class CoroutineExecutorImpl(
     private val logger: Logger,
     private val dispatcher: Dispatcher,
 ) : CoroutineExecutor {
-    private val coroutineScopeHolder: LazyReference<CoroutineScope> = LazyReference()
+    private var _backgroundScope: CoroutineScope? = null
+    private val backgroundScope: CoroutineScope
+        get() = _backgroundScope ?: CoroutineScope(
+            context = dispatcher.background(),
+        ).apply { _backgroundScope = this }
 
-    override fun launchShared(
+    private var _mainScope: CoroutineScope? = null
+    private val mainScope: CoroutineScope
+        get() = _mainScope ?: CoroutineScope(
+            context = dispatcher.main(),
+        ).apply { _mainScope = this }
+
+    override fun launchOnBackground(
         onError: (Throwable) -> Unit,
         block: suspend CoroutineScope.() -> Unit,
-    ): Job {
-        val exceptionHandler = CoroutineExceptionHandler { _, exception ->
-            logger.fatal("Coroutine execution scope failed with error: ${exception.message}, restarting scope")
-            coroutineScopeHolder.clearInstance()
+    ): Job = backgroundScope.launch(
+        context = CoroutineExceptionHandler { _, exception ->
+            _backgroundScope = null
+            logger.fatal("Background coroutine execution scope crashed with error: ${exception.message}, restarting scope")
             onError(exception)
-        }
-
-        return coroutineScopeHolder.initializeAndGet {
-            CoroutineScope(context = dispatcher.background())
-        }.launch(context = exceptionHandler) {
-            val result = kotlin.runCatching {
+        },
+        block = {
+            kotlin.runCatching {
                 block()
-            }
-            result.onFailure { ex ->
-                logger.fatal("Coroutine execution failed with error: ${ex.message}")
+            }.onFailure { ex ->
+                logger.fatal("Background coroutine execution failed with error: ${ex.message}")
                 onError(ex)
+                ex.printStackTrace()
             }
-        }
-    }
+        },
+    )
+
+    override fun launchOnMain(
+        onError: (Throwable) -> Unit,
+        block: suspend CoroutineScope.() -> Unit,
+    ): Job = mainScope.launch(
+        context = CoroutineExceptionHandler { _, exception ->
+            _mainScope = null
+            logger.fatal("Main coroutine execution scope crashed with error: ${exception.message}, restarting scope")
+            onError(exception)
+        },
+        block = {
+            kotlin.runCatching {
+                block()
+            }.onFailure { ex ->
+                logger.fatal("Main coroutine execution failed with error: ${ex.message}")
+                onError(ex)
+                ex.printStackTrace()
+            }
+        },
+    )
 }

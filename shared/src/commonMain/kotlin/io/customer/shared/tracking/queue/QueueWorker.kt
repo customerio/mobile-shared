@@ -11,7 +11,8 @@ import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.Logger
 import io.customer.shared.work.CoroutineExecutable
 import io.customer.shared.work.CoroutineExecutor
-import io.customer.shared.work.runSuspended
+import io.customer.shared.work.QueueTimer
+import io.customer.shared.work.runOnBackground
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Instant
 import kotlin.time.DurationUnit
@@ -36,25 +37,24 @@ internal class QueueWorkerImpl(
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueRunner: QueueRunner,
+    private val queueTimer: QueueTimer,
 ) : QueueWorker, CoroutineExecutable {
     private val mutex = Mutex()
 
     private suspend fun acquireLock() {
         logger.debug("Acquiring lock for queue")
-        val result = kotlin.runCatching {
+        kotlin.runCatching {
             mutex.lock(owner = this)
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Mutex locking failed, reason: $ex")
         }
     }
 
     private fun releaseLock() {
         logger.debug("Releasing lock for queue")
-        val result = kotlin.runCatching {
+        kotlin.runCatching {
             mutex.unlock()
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Mutex unlocking failed, reason: $ex")
         }
     }
@@ -68,30 +68,39 @@ internal class QueueWorkerImpl(
     }
 
     override suspend fun sendAllPending() {
-        processBatchTasks(isRecursive = true) { trackingTaskQueryHelper.selectAllPendingTasks().getOrNull() }
+        processBatchTasks(isRecursive = true) {
+            trackingTaskQueryHelper.selectAllPendingTasks().getOrNull()
+        }
     }
 
     private fun processBatchTasks(
         isRecursive: Boolean,
         getTasks: suspend () -> List<TrackingTask>?,
-    ) {
-        runSuspended {
-            if (mutex.isLocked) return@runSuspended
+    ) = runOnBackground {
+        if (mutex.isLocked) return@runOnBackground
 
-            acquireLock()
-            val result = kotlin.runCatching {
-                do {
-                    val pendingTasks = getTasks()
-                    val isSuccess: Boolean = if (!pendingTasks.isNullOrEmpty()) {
-                        queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
-                    } else false
-                } while (isRecursive && isSuccess)
-            }
-            result.onFailure { ex ->
-                logger.error("Validation for pending tasks failed with error: ${ex.message}")
-            }
-            releaseLock()
+        acquireLock()
+        kotlin.runCatching {
+            queueTimer.cancel()
+        }.onFailure { ex ->
+            logger.error("Cannot cancel scheduled timer error: ${ex.message}")
         }
+        kotlin.runCatching {
+            do {
+                val pendingTasks = getTasks()
+                val isSuccess: Boolean = if (!pendingTasks.isNullOrEmpty()) {
+                    queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
+                } else false
+            } while (isRecursive && isSuccess)
+        }.onFailure { ex ->
+            logger.error("Validation for pending tasks failed with error: ${ex.message}")
+        }
+        kotlin.runCatching {
+            queueTimer.schedule(seconds = 5) { checkForPendingTasks(QueueTriggerSource.TIMER) }
+        }.onFailure { ex ->
+            logger.error("Cannot schedule timer error: ${ex.message}")
+        }
+        releaseLock()
     }
 
     private fun canTriggerBatch(task: TrackingTask, timestamp: Instant): Boolean {
