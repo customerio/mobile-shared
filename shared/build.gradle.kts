@@ -24,8 +24,13 @@ kmmbridge {
 }
 
 sqldelight {
+    // Read more on gradle options on https://cashapp.github.io/sqldelight/multiplatform_sqlite/gradle/
     database("CioDatabase") {
-        packageName = "io.customer.shared.local"
+        packageName = "io.customer.shared.database"
+        // The directory where to store '.db' schema files to verify migrations
+        schemaOutputDirectory = file("src/commonMain/sqldelight/schema")
+        // Migration files will fail during compilation if there are errors in them.
+        verifyMigrations = true
     }
 }
 

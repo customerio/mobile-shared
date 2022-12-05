@@ -1,7 +1,7 @@
 package io.customer.shared.tracking.model
 
-import io.customer.shared.common.CustomAttributes
 import io.customer.shared.tracking.constant.ActivityType
+import io.customer.shared.tracking.constant.QueueTaskStatus
 import kotlinx.serialization.SerialName
 
 /**
@@ -19,9 +19,8 @@ internal val Activity.type: String
     }
 
 /**
- * Merges two maps together. For duplicate keys, the value in the receiver object will take
- * preference.
+ * Determines whether the task update should be counted as result of failed attempt or not. We do
+ * not count successful attempts in retry count.
  */
-internal fun CustomAttributes.merge(other: CustomAttributes?): CustomAttributes {
-    return other.orEmpty() + this
-}
+internal val TaskResponse.shouldCountAsRetry: Boolean
+    get() = taskStatus != QueueTaskStatus.SENT

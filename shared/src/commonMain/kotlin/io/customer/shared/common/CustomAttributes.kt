@@ -16,7 +16,7 @@ typealias CustomAttributesCompat = Map<String, Any>
  * typealias CustomAttributes = Map<String, Any>
  * ************************************************
  */
-// TODO: Add support for generic serialization
+// TODO: Add support for generic and optional serialization
 internal typealias CustomAttributes = Map<String, String>
 
 internal fun CustomAttributesCompat.fix(): CustomAttributes {

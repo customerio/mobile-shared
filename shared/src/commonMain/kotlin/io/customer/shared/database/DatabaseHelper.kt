@@ -1,12 +1,19 @@
 package io.customer.shared.database
 
-import io.customer.shared.local.CioDatabase
+import com.squareup.sqldelight.EnumColumnAdapter
 
 internal class DatabaseHelper(databaseDriverFactory: DatabaseDriverFactory) {
     private val database = CioDatabase(
         driver = databaseDriverFactory.createDriver(databaseName = DATABASE_NAME),
+        trackingTaskAdapter = TrackingTask.Adapter(
+            createdAtAdapter = DateTimeInstantAdapter,
+            updatedAtAdapter = DateTimeInstantAdapter,
+            identityTypeAdapter = EnumColumnAdapter(),
+            queueTaskStatusAdapter = EnumColumnAdapter(),
+            errorReasonAdapter = EnumColumnAdapter(),
+        ),
     )
-    private val dbQuery = database.cioDatabaseQueries
+    val trackingTaskDAO = database.trackingTaskQueries
 
     companion object {
         const val DATABASE_NAME = "customerio.db"

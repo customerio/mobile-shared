@@ -1,8 +1,6 @@
 package io.customer.shared.di
 
-import io.customer.shared.database.DatabaseDriverFactory
-import io.customer.shared.database.DatabaseHelper
-import io.customer.shared.database.getDatabaseDriverFactory
+import io.customer.shared.database.*
 
 /**
  * Workspace component dependency graph to satisfy workspace based dependencies from single place.
@@ -34,4 +32,16 @@ class KMMComponent(
     private val databaseHelper: DatabaseHelper
         get() = getSingletonInstance { DatabaseHelper(databaseDriverFactory = databaseDriverFactory) }
 
+    internal val trackingTaskQueryHelper: TrackingTaskQueryHelper
+        get() = getSingletonInstance {
+            TrackingTaskQueryHelperImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                jsonAdapter = staticComponent.jsonAdapter,
+                databaseUtil = staticComponent.databaseUtil,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
+                trackingTaskDAO = databaseHelper.trackingTaskDAO,
+            )
+        }
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import com.squareup.sqldelight.android.AndroidSqliteDriver
 import com.squareup.sqldelight.db.SqlDriver
 import io.customer.shared.Platform
-import io.customer.shared.local.CioDatabase
 
 actual class DatabaseDriverFactory(private val context: Context) {
     actual fun createDriver(databaseName: String): SqlDriver = AndroidSqliteDriver(
@@ -15,5 +14,5 @@ actual class DatabaseDriverFactory(private val context: Context) {
 }
 
 actual fun getDatabaseDriverFactory(platform: Platform) = DatabaseDriverFactory(
-    context = platform.applicationContext
+    context = platform.applicationContext,
 )
