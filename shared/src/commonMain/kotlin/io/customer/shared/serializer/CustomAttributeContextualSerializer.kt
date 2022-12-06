@@ -9,6 +9,23 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
 /**
+ * Parses an object to json, null if no platform specific parsing is needed. This is called
+ * initially for all non-null values and does not need to handle common parsing like e.g. String,
+ * Int, etc.
+ *
+ * @see [parseAnyToJsonOrNull] responsible for calling this.
+ */
+internal expect fun parseFromAnyToJsonOrNull(value: Any): JsonElement?
+
+/**
+ * Transforms json to type object, null if no platform specific parsing is needed. This is called
+ * initially to for all non-null String values and does not need to handle common transformation.
+ *
+ * @see [parseJsonToAnyOrNull] responsible for calling this.
+ */
+internal expect fun parseFromJsonToAnyOrNull(jsonPrimitive: JsonPrimitive): Any?
+
+/**
  * Contextual serializer for Kotlin serialization to add support for generic objects. The
  * serializer assures the parsing is safe and fallbacks to [DEFAULT_FALLBACK_VALUE] where it
  * fails to process.
@@ -25,21 +42,21 @@ internal class CustomAttributeContextualSerializer(
     override val descriptor: SerialDescriptor = delegateSerializer.descriptor
 
     override fun serialize(encoder: Encoder, value: Any) {
-        val jsonElement = toJsonElementOrNull(value = value).also { json ->
+        val jsonElement = parseAnyToJsonOrNull(value = value).also { json ->
             if (json == null) {
                 logger.error("Unable to serialize $value, replacing with $DEFAULT_FALLBACK_VALUE")
             }
-        } ?: JsonPrimitive(value = DEFAULT_FALLBACK_VALUE)
+        } ?: DEFAULT_FALLBACK_VALUE
         encoder.encodeSerializableValue(delegateSerializer, jsonElement)
     }
 
     override fun deserialize(decoder: Decoder): Any {
         val jsonElement = decoder.decodeSerializableValue(delegateSerializer)
-        return toAnyValueOrNull(jsonElement = jsonElement) ?: DEFAULT_FALLBACK_VALUE
+        return parseJsonToAnyOrNull(jsonElement = jsonElement) ?: DEFAULT_FALLBACK_VALUE
     }
 
     companion object {
-        const val DEFAULT_FALLBACK_VALUE = "NULL"
+        val DEFAULT_FALLBACK_VALUE = JsonNull
     }
 }
 
@@ -49,18 +66,24 @@ internal class CustomAttributeContextualSerializer(
  *
  * @return mapped [JsonElement] if successful; null otherwise.
  */
-private fun CustomAttributeContextualSerializer.toJsonElementOrNull(value: Any?): JsonElement? {
-    return when (value) {
-        null -> JsonNull
+private fun CustomAttributeContextualSerializer.parseAnyToJsonOrNull(value: Any?): JsonElement? {
+    return if (value == null) JsonNull
+    else parseFromAnyToJsonOrNull(value = value) ?: when (value) {
         is JsonElement -> value
         is Boolean -> JsonPrimitive(value = value)
         is Number -> JsonPrimitive(value = value)
         is String -> JsonPrimitive(value = value)
-        is Iterable<*> -> JsonArray(value.mapNotNull { item -> toJsonElementOrNull(item) })
+        is Enum<*> -> JsonPrimitive(value = value.name)
+        is Array<*> -> JsonArray(
+            value.map { item -> parseAnyToJsonOrNull(item) ?: JsonNull },
+        )
+        is Iterable<*> -> JsonArray(
+            value.map { item -> parseAnyToJsonOrNull(item) ?: JsonNull },
+        )
         is Map<*, *> -> {
             JsonObject(
-                value.mapNotNull { item ->
-                    toJsonElementOrNull(item.value)?.let { result -> item.key.toString() to result }
+                value.map { (key, item) ->
+                    key.toString() to (parseAnyToJsonOrNull(item) ?: JsonNull)
                 }.toMap(),
             )
         }
@@ -71,18 +94,18 @@ private fun CustomAttributeContextualSerializer.toJsonElementOrNull(value: Any?)
 /**
  * The method tries to map [JsonElement] to best matching Kotlin primitive types. Mainly
  * responsible for mapping collections, all non-null primitive types are mapped using
- * [toAnyValueOrNull] for [JsonPrimitive].
+ * [parseJsonToAnyOrNull] for [JsonPrimitive].
  *
  * @return mapped object if successful; null otherwise.
  */
-private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonElement: JsonElement): Any? {
+private fun CustomAttributeContextualSerializer.parseJsonToAnyOrNull(jsonElement: JsonElement): Any? {
     return when (jsonElement) {
         is JsonNull -> null
-        is JsonPrimitive -> toAnyValueOrNull(jsonPrimitive = jsonElement)
+        is JsonPrimitive -> parseJsonToAnyOrNull(jsonPrimitive = jsonElement)
         is JsonObject -> jsonElement.entries.associate { item ->
-            item.key to toAnyValueOrNull(item.value)
+            item.key to parseJsonToAnyOrNull(item.value)
         }
-        is JsonArray -> jsonElement.map { item -> toAnyValueOrNull(item) }
+        is JsonArray -> jsonElement.map { item -> parseJsonToAnyOrNull(item) }
     }
 }
 
@@ -93,12 +116,13 @@ private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonElement: Js
  *
  * @return mapped object if successful; null otherwise.
  */
-private fun CustomAttributeContextualSerializer.toAnyValueOrNull(jsonPrimitive: JsonPrimitive): Any? {
+private fun CustomAttributeContextualSerializer.parseJsonToAnyOrNull(jsonPrimitive: JsonPrimitive): Any? {
     val content = jsonPrimitive.content
     return when {
         jsonPrimitive.isString -> content
         content.equals(other = "null", ignoreCase = true) -> null
-        else -> content.toBooleanStrictOrNull()
+        else -> parseFromJsonToAnyOrNull(jsonPrimitive = jsonPrimitive)
+            ?: content.toBooleanStrictOrNull()
             ?: content.toIntOrNull()
             ?: content.toLongOrNull()
             ?: content.toFloatOrNull()
