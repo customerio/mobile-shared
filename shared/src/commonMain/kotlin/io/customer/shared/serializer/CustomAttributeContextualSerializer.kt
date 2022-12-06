@@ -82,14 +82,29 @@ private fun CustomAttributeContextualSerializer.parseAnyToJsonOrNull(value: Any?
         )
         is Map<*, *> -> {
             JsonObject(
-                value.map { (key, item) ->
+                value.entries.associate { (key, item) ->
                     key.toString() to (parseAnyToJsonOrNull(item) ?: JsonNull)
-                }.toMap(),
+                },
             )
         }
-        else -> serializer?.serialize(value = value)?.let { json -> JsonPrimitive(value = json) }
+        else -> serializer?.serialize(value = value)?.let { json -> json.parseToJsonElement() }
     }
 }
+
+/**
+ * Used for transforming objects from custom serializer to json classes without forcing client
+ * apps to use Kotlin JSON classes.
+ */
+private fun Any?.parseToJsonElement(): JsonElement = if (this != null)
+    when (this) {
+        is Boolean -> JsonPrimitive(value = this)
+        is Number -> JsonPrimitive(value = this)
+        is String -> JsonPrimitive(value = this)
+        is Map<*, *> -> JsonObject(
+            entries.associate { (key, item) -> key.toString() to item.parseToJsonElement() },
+        )
+        else -> JsonPrimitive(value = this.toString())
+    } else JsonNull
 
 /**
  * The method tries to map [JsonElement] to best matching Kotlin primitive types. Mainly
