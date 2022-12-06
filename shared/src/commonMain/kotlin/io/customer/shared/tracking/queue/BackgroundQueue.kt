@@ -11,8 +11,8 @@ import io.customer.shared.tracking.model.Activity
 import io.customer.shared.tracking.model.Task
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.Logger
-import io.customer.shared.work.CoroutineExecutable
-import io.customer.shared.work.CoroutineExecutor
+import io.customer.shared.work.JobDispatcher
+import io.customer.shared.work.JobExecutor
 import io.customer.shared.work.runOnMain
 import io.customer.shared.work.runOnBackground
 import kotlinx.coroutines.Job
@@ -71,10 +71,10 @@ internal class BackgroundQueueImpl(
     private val dateTimeUtil: DateTimeUtil,
     private val workspace: Workspace,
     private val platform: Platform,
-    override val executor: CoroutineExecutor,
+    override val executor: JobExecutor,
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueWorker: QueueWorker,
-) : BackgroundQueue, CoroutineExecutable {
+) : BackgroundQueue, JobDispatcher {
     override fun queueIdentifyProfile(
         profileIdentifier: String,
         attributes: CustomAttributes,

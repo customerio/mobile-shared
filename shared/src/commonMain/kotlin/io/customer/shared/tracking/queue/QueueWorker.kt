@@ -9,10 +9,7 @@ import io.customer.shared.tracking.constant.Priority
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.Logger
-import io.customer.shared.work.CoroutineExecutable
-import io.customer.shared.work.CoroutineExecutor
-import io.customer.shared.work.QueueTimer
-import io.customer.shared.work.runOnBackground
+import io.customer.shared.work.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Instant
 import kotlin.time.DurationUnit
@@ -33,12 +30,12 @@ internal interface QueueWorker {
 internal class QueueWorkerImpl(
     private val logger: Logger,
     private val dateTimeUtil: DateTimeUtil,
-    override val executor: CoroutineExecutor,
+    override val executor: JobExecutor,
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueRunner: QueueRunner,
     private val queueTimer: QueueTimer,
-) : QueueWorker, CoroutineExecutable {
+) : QueueWorker, JobDispatcher {
     private val mutex = Mutex()
 
     private suspend fun acquireLock() {
@@ -96,7 +93,10 @@ internal class QueueWorkerImpl(
             logger.error("Validation for pending tasks failed with error: ${ex.message}")
         }
         kotlin.runCatching {
-            queueTimer.schedule(seconds = 5) { checkForPendingTasks(QueueTriggerSource.TIMER) }
+            queueTimer.schedule(
+                force = true,
+                duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
+            ) { checkForPendingTasks(QueueTriggerSource.TIMER) }
         }.onFailure { ex ->
             logger.error("Cannot schedule timer error: ${ex.message}")
         }

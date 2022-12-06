@@ -9,10 +9,10 @@ import kotlinx.coroutines.launch
 
 /**
  * Helper class to simplify running operations on coroutines and make exception handling easier.
- * Every class should have its own instance of [CoroutineExecutor] to avoid sharing of coroutines
+ * Every class should have its own instance of [JobExecutor] to avoid sharing of coroutines
  * with other classes.
  */
-internal interface CoroutineExecutor {
+internal interface JobExecutor {
     fun launchOnBackground(
         onError: (Throwable) -> Unit = {},
         block: suspend CoroutineScope.() -> Unit,
@@ -24,10 +24,10 @@ internal interface CoroutineExecutor {
     ): Job
 }
 
-internal class CoroutineExecutorImpl(
+internal class JobExecutorImpl(
     private val logger: Logger,
     private val dispatcher: Dispatcher,
-) : CoroutineExecutor {
+) : JobExecutor {
     private var _backgroundScope: CoroutineScope? = null
     private val backgroundScope: CoroutineScope
         get() = _backgroundScope ?: CoroutineScope(
@@ -46,16 +46,21 @@ internal class CoroutineExecutorImpl(
     ): Job = backgroundScope.launch(
         context = CoroutineExceptionHandler { _, exception ->
             _backgroundScope = null
-            logger.fatal("Background coroutine execution scope crashed with error: ${exception.message}, restarting scope")
+            logger.fatal(
+                message = "Background coroutine execution scope crashed with error: ${exception.message}, restarting scope",
+                exception = exception,
+            )
             onError(exception)
         },
         block = {
             kotlin.runCatching {
                 block()
             }.onFailure { ex ->
-                logger.fatal("Background coroutine execution failed with error: ${ex.message}")
+                logger.fatal(
+                    message = "Background coroutine execution failed with error: ${ex.message}",
+                    exception = ex,
+                )
                 onError(ex)
-                ex.printStackTrace()
             }
         },
     )
@@ -66,14 +71,20 @@ internal class CoroutineExecutorImpl(
     ): Job = mainScope.launch(
         context = CoroutineExceptionHandler { _, exception ->
             _mainScope = null
-            logger.fatal("Main coroutine execution scope crashed with error: ${exception.message}, restarting scope")
+            logger.fatal(
+                message = "Main coroutine execution scope crashed with error: ${exception.message}, restarting scope",
+                exception = exception,
+            )
             onError(exception)
         },
         block = {
             kotlin.runCatching {
                 block()
             }.onFailure { ex ->
-                logger.fatal("Main coroutine execution failed with error: ${ex.message}")
+                logger.fatal(
+                    message = "Main coroutine execution failed with error: ${ex.message}",
+                    exception = ex,
+                )
                 onError(ex)
                 ex.printStackTrace()
             }

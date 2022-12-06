@@ -37,7 +37,6 @@ internal class QueueRunnerImpl(
                 status = QueueTaskStatus.FAILED,
                 tasks = pendingTasks,
             )
-            ex.printStackTrace()
         }
     }
 

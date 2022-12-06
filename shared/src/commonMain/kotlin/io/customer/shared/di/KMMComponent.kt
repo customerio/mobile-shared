@@ -8,8 +8,8 @@ import io.customer.shared.tracking.api.TrackingHttpClientImpl
 import io.customer.shared.tracking.queue.*
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.JsonAdapterImpl
-import io.customer.shared.work.CoroutineQueueTimer
 import io.customer.shared.work.QueueTimer
+import io.customer.shared.work.getQueueTimer
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -30,7 +30,7 @@ import io.ktor.serialization.kotlinx.*
  */
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 class KMMComponent(
-    private val staticComponent: KMMStaticComponent = KMMStaticComponent(),
+    internal val staticComponent: KMMStaticComponent = KMMStaticComponent(),
     val sdkComponent: SDKComponent,
 ) : DIGraph() {
     constructor(sdkComponent: SDKComponent) : this(
@@ -49,7 +49,7 @@ class KMMComponent(
                 dateTimeUtil = staticComponent.dateTimeUtil,
                 workspace = sdkComponent.customerIOConfig.workspace,
                 platform = sdkComponent.platform,
-                executor = staticComponent.coroutineExecutor,
+                executor = staticComponent.jobExecutor,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueWorker = queueWorker,
             )
@@ -95,9 +95,10 @@ class KMMComponent(
 
     internal val queueTimer: QueueTimer
         get() = getNewInstance {
-            CoroutineQueueTimer(
+            getQueueTimer(
+                dispatcher = staticComponent.dispatcher,
                 logger = staticComponent.logger,
-                executor = staticComponent.coroutineExecutor,
+                jobExecutor = staticComponent.jobExecutor,
             )
         }
 
@@ -106,7 +107,7 @@ class KMMComponent(
             QueueWorkerImpl(
                 logger = staticComponent.logger,
                 dateTimeUtil = staticComponent.dateTimeUtil,
-                executor = staticComponent.coroutineExecutor,
+                executor = staticComponent.jobExecutor,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueRunner = queueRunner,

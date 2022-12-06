@@ -52,8 +52,10 @@ internal class TrackingHttpClientImpl(
             logger.debug("Batch tracking successful with code: ${response.statusCode}")
             return@runCatching response
         }.onFailure { ex ->
-            logger.error("Batch tracking failed with error: ${ex.message}")
-            ex.printStackTrace()
+            logger.error(
+                message = "Batch tracking failed with error: ${ex.message}",
+                exception = ex,
+            )
         }
     }
 }

@@ -4,12 +4,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
 /**
- * Interface to make execution with coroutines easy. The class depends on [CoroutineExecutor] to
+ * Interface to make execution with coroutines easy. The class depends on [JobExecutor] to
  * run in background and exposes simpler methods to run on background and handle exceptions in
  * coroutines.
  */
-internal interface CoroutineExecutable {
-    val executor: CoroutineExecutor
+internal interface JobDispatcher {
+    val executor: JobExecutor
 
     /**
      * Called whenever a coroutine fails with exception. Child classes can implement it to perform
@@ -20,14 +20,14 @@ internal interface CoroutineExecutable {
     fun onCoroutineFailed(exception: Throwable) {}
 }
 
-internal fun CoroutineExecutable.runOnBackground(
+internal fun JobDispatcher.runOnBackground(
     block: suspend CoroutineScope.() -> Unit,
 ): Job = executor.launchOnBackground(
     onError = { ex -> onCoroutineFailed((ex)) },
     block = block,
 )
 
-internal fun CoroutineExecutable.runOnMain(
+internal fun JobDispatcher.runOnMain(
     block: suspend CoroutineScope.() -> Unit,
 ): Job = executor.launchOnMain(
     onError = { ex -> onCoroutineFailed((ex)) },
