@@ -15,6 +15,9 @@ interface CustomAttributeSerializer {
     /**
      * Parses object to json; returning null here will result in the custom attribute original value
      * being dropped from the attributes.
+     *
+     * All primitive types are passed on as it is, while JSON Object can be passed by returning
+     * map here.
      */
-    fun serialize(value: Any): String?
+    fun serialize(value: Any): Any?
 }
