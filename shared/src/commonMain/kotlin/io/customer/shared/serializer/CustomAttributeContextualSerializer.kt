@@ -33,6 +33,8 @@ internal expect fun parseFromJsonToAnyOrNull(jsonPrimitive: JsonPrimitive): Any?
  * To support [Any] object in the class, the class file should add the following annotation
  *
  * [@file:UseContextualSerialization(Any::class)]
+ *
+ * @see [Kotlin docs on contextual serialization and generic classes](https://github.com/Kotlin/kotlinx.serialization/blob/master/docs/serializers.md#contextual-serialization-and-generic-classes)
  */
 internal class CustomAttributeContextualSerializer(
     private val logger: Logger,
