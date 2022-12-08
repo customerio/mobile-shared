@@ -102,7 +102,7 @@ internal sealed interface Activity {
     data class Metric(
         val metricEvent: MetricEvent,
         val deliveryId: String,
-        val deviceToken: String,
+        val deviceToken: String?,
         override val timestamp: Long,
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {

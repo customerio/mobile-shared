@@ -7,7 +7,7 @@ interface Logger {
     // Log level to filter unwanted messages in debug and release environments
     var logLevel: LogLevel
 
-    fun fatal(message: String)
+    fun fatal(message: String, exception: Throwable?)
     fun error(message: String)
     fun warn(message: String)
     fun info(message: String)
@@ -31,7 +31,11 @@ expect fun writeLogMessage(logLevel: LogLevel, tag: String, message: String)
 internal class ConsoleLogger : Logger {
     override var logLevel: LogLevel = logLevelDefault
 
-    override fun fatal(message: String) = writeLogMessage(LogLevel.FATAL, message)
+    override fun fatal(message: String, exception: Throwable?) {
+        error(message)
+        if (logLevel == LogLevel.DEBUG) exception?.printStackTrace()
+    }
+
     override fun error(message: String) = writeLogMessage(LogLevel.ERROR, message)
     override fun warn(message: String) = writeLogMessage(LogLevel.WARN, message)
     override fun info(message: String) = writeLogMessage(LogLevel.INFO, message)

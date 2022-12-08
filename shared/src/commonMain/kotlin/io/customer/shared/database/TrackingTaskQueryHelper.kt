@@ -58,18 +58,16 @@ internal class TrackingTaskQueryHelperImpl(
         tasks: List<TrackingTask>,
     ): Result<Unit> {
         val taskIds = tasks.map { task -> task.uuid }
-        val result = kotlin.runCatching {
+        return kotlin.runCatching {
             trackingTaskDAO.updateTasksStatus(
                 updatedAt = dateTimeUtil.now,
                 status = status,
                 ids = taskIds,
                 siteId = workspace.siteId,
             )
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Unable to update status $status for tasks ${taskIds.joinToString(separator = ",")}. Reason: ${ex.message}")
         }
-        return result
     }
 
     /**
@@ -108,7 +106,7 @@ internal class TrackingTaskQueryHelperImpl(
         }
     }
 
-    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction {
+    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction<Result<Unit>> {
         insertTaskInternal(task = task)
     }.onFailure { ex ->
         logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
@@ -153,7 +151,7 @@ internal class TrackingTaskQueryHelperImpl(
         else Result.failure(exception)
     }
 
-    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction {
+    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction<Result<Unit>> {
         kotlin.runCatching {
             trackingTaskDAO.clearAllTasksWithStatus(
                 status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),

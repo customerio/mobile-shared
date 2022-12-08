@@ -5,6 +5,7 @@ import io.customer.shared.tracking.api.HttpClientBuilder
 import io.customer.shared.tracking.api.HttpClientBuilderImpl
 import io.customer.shared.tracking.api.TrackingHttpClient
 import io.customer.shared.tracking.api.TrackingHttpClientImpl
+import io.customer.shared.tracking.queue.*
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.JsonAdapterImpl
 import io.ktor.client.*
@@ -39,6 +40,19 @@ class KMMComponent(
         staticComponent.attachSDKConfig(config = sdkComponent.customerIOConfig)
     }
 
+    val backgroundQueue: BackgroundQueue
+        get() = getSingletonInstance {
+            BackgroundQueueImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                platform = sdkComponent.platform,
+                jobExecutor = staticComponent.jobExecutor,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
+                queueDispatcher = queueDispatcher,
+            )
+        }
+
     private val databaseDriverFactory: DatabaseDriverFactory
         get() = getSingletonInstance { getDatabaseDriverFactory(platform = sdkComponent.platform) }
 
@@ -63,6 +77,38 @@ class KMMComponent(
                 workspace = sdkComponent.customerIOConfig.workspace,
                 backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
                 trackingTaskDAO = databaseHelper.trackingTaskDAO,
+            )
+        }
+
+    internal val queueDispatcher: QueueDispatcher
+        get() = getSingletonInstance {
+            QueueDispatcherImpl(
+                logger = staticComponent.logger,
+                dateTimeUtil = staticComponent.dateTimeUtil,
+                jobExecutor = staticComponent.jobExecutor,
+                backgroundQueueConfig = sdkComponent.customerIOConfig.backgroundQueue,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
+                queueRunner = queueRunner,
+                queueTimer = queueTimer,
+            )
+        }
+
+    internal val queueRunner: QueueRunner
+        get() = getSingletonInstance {
+            QueueRunnerImpl(
+                logger = staticComponent.logger,
+                jsonAdapter = jsonAdapter,
+                workspace = sdkComponent.customerIOConfig.workspace,
+                trackingTaskQueryHelper = trackingTaskQueryHelper,
+                trackingHttpClient = trackingHttpClient,
+            )
+        }
+
+    internal val queueTimer: QueueTimer
+        get() = getNewInstance {
+            getQueueTimer(
+                logger = staticComponent.logger,
+                jobExecutor = staticComponent.jobExecutor,
             )
         }
 
