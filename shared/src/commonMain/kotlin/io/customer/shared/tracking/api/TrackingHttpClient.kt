@@ -51,6 +51,7 @@ internal class TrackingHttpClientImpl(
                 setBody(body = requestBody)
             }
             val responseBody = httpResponse.body<BatchTrackingResponseBody>()
+            responseBody.meta?.let { logger.error("Batch tracking failed with error: ${it.error}") }
             return@runCatching BatchTrackingResponse(
                 statusCode = httpResponse.status.value,
                 errors = responseBody.errors ?: emptyList(),
