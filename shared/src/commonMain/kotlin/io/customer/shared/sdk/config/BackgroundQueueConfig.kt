@@ -57,6 +57,6 @@ class BackgroundQueueConfig private constructor(
     internal object DefaultValue {
         const val BATCH_THRESHOLD = 5
         const val BATCH_LIMIT = 30
-        const val BATCH_DELAY_SECONDS = 10
+        const val BATCH_DELAY_SECONDS = 30
     }
 }

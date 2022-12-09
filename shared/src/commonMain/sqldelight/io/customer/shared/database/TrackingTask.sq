@@ -55,7 +55,7 @@ WHERE queueTaskStatus IN :status AND siteId == :siteId;
 selectAllPendingTasks:
 SELECT * FROM trackingTask
 WHERE queueTaskStatus IN :status AND (identity IS NOT NULL OR identity == '') AND siteId == :siteId
-ORDER BY priority ASC, createdAt DESC
+ORDER BY priority DESC, createdAt ASC
 LIMIT :limit;
 
 selectByType:

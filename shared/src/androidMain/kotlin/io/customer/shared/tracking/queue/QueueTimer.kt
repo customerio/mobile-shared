@@ -97,6 +97,6 @@ private class AndroidQueueTimer(
     }
 
     private fun log(message: String) {
-        logger.debug("Timer $message")
+        logger.debug("QueueTimer $message")
     }
 }
