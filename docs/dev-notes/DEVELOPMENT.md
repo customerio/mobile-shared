@@ -14,6 +14,6 @@ If you are fimiliar with the setup already, follow these quick instructions to r
 - Sync gradle files to make sure it is using the latest local release
 - Run `install local` configuration in Android SDK
 - Checkout the desired branch in RemoteHabits (You should be able to run on `main` too)
-- Update `siteid` and `apikey` with devbox credentials
+- Update `siteid` and `apikey` with devbox keys
 - Sync gradle files to make sure it is using the latest local releases
 - Run the app
