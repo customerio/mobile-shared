@@ -4,8 +4,8 @@ plugins {
     id("com.android.library")
     id("com.squareup.sqldelight")
     id("maven-publish")
-    kotlin("plugin.serialization") version "1.7.20"
-    id("co.touchlab.faktory.kmmbridge") version "0.3.3"
+    kotlin("plugin.serialization") version "1.7.21"
+    id("co.touchlab.faktory.kmmbridge") version "0.3.4"
 }
 
 repositories {
