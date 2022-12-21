@@ -35,7 +35,7 @@ internal class QueueDispatcherImpl(
     private val backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueRunner: QueueRunner,
-    private val queueTimer: QueueTimer,
+    private val queueTimer: Timer,
 ) : QueueDispatcher, JobDispatcher {
     private val mutex = Mutex()
 
@@ -85,11 +85,7 @@ internal class QueueDispatcherImpl(
         if (mutex.isLocked) return@runOnBackground
 
         acquireLock()
-        kotlin.runCatching {
-            queueTimer.cancel()
-        }.onFailure { ex ->
-            logger.error("Cannot cancel scheduled timer error: ${ex.message}")
-        }
+        queueTimer.cancel()
         kotlin.runCatching {
             do {
                 val pendingTasks = getTasks()
@@ -100,32 +96,62 @@ internal class QueueDispatcherImpl(
         }.onFailure { ex ->
             logger.error("Validation for pending tasks failed with error: ${ex.message}")
         }
-        kotlin.runCatching {
-            queueTimer.schedule(
-                force = true,
-                duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
-            ) { runOnBackground { checkForPendingTasks(QueueTriggerSource.TIMER) } }
-        }.onFailure { ex ->
-            logger.error("Cannot schedule timer error: ${ex.message}")
-        }
+        queueTimer.schedule(
+            cancelPrevious = true,
+            duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
+        ) { runOnBackground { checkForPendingTasks(QueueTriggerSource.TIMER) } }
         releaseLock()
     }
 
+    /**
+     * Method to evaluate if a task is overdue can trigger queue run immediately. The task can be
+     * trigger the batch only if it is counted as important (@see [shouldCountInBatchTrigger]) and
+     * meets any of the following criteria:
+     *
+     * - Has higher priority than normal tasks.
+     * - Has exceeded the maximum duration for any task to stay in queue.
+     *
+     * @param task to be evaluated.
+     * @param timestamp current time at the start of method call.
+     * @return true if the queue should be triggered instantly; false if it can wait.
+     */
     private fun shouldSendImmediately(task: TrackingTask, timestamp: Instant): Boolean {
+        if (!shouldCountInBatchTrigger(task)) return false
+
+        if (task.priority > Priority.DEFAULT) return true
         val timeInQueue = timestamp.minus(task.createdAt).toLong(DurationUnit.SECONDS)
-        return shouldCountInBatchTrigger(task) && (
-                timeInQueue >= backgroundQueueConfig.batchDelayMaxDelayInSeconds
-                        || task.priority > Priority.DEFAULT)
+        return timeInQueue >= backgroundQueueConfig.batchDelayMaxDelayInSeconds
     }
 
+    /**
+     * Evaluates if a task can trigger a batch. This is mainly to avoid looping on invalid tasks.
+     * If a task was sent previously, but was rejected by server for any reason (including server
+     * down), we don't consider it important enough to trigger the run. This means the task will
+     * stay in batch, but will not be counted as new task.
+     *
+     * e.g. With minimum tasks to batch as 10, if we have 11 tasks in total, and 2 of them being
+     * re-attempted, we only consider remaining 9 tasks to be important enough to trigger the queue.
+     * The re-attempted 2 tasks will be batched though and won't be skipped.
+     *
+     * This should only help in fixable tasks or when pausing queue.
+     *
+     * @param task to be evaluated.
+     * @return true if the task meet the specified criteria; false otherwise.
+     */
     private fun shouldCountInBatchTrigger(task: TrackingTask): Boolean {
         return task.retryCount <= 0 || task.statusCode == null
     }
 
+    /**
+     * Returns task eligible to batch and update their status to [QueueTaskStatus.QUEUED]. It is
+     * callers responsibility to update next status accordingly.
+     *
+     * @return list of tasks to batch, empty if no tasks available.
+     */
     @Throws(Exception::class)
-    private suspend fun getTasksToBatch(): List<TrackingTask>? {
+    private suspend fun getTasksToBatch(): List<TrackingTask> {
         val pendingTasks = trackingTaskQueryHelper.selectAllPendingTasks().getOrNull()
-        if (pendingTasks.isNullOrEmpty()) return null
+        if (pendingTasks.isNullOrEmpty()) return emptyList()
 
         var dispatch = false
         var pendingTasksCount = 0
@@ -137,18 +163,13 @@ internal class QueueDispatcherImpl(
         dispatch = dispatch || pendingTasksCount >= backgroundQueueConfig.batchDelayMinTasks
         logger.debug("Total tasks checked: ${pendingTasks.size}, batching :$dispatch")
 
-        if (dispatch) {
-            trackingTaskQueryHelper.updateTasksStatus(
-                status = QueueTaskStatus.SENDING,
-                tasks = pendingTasks,
-            )
-        } else {
-            // queue next
+        if (!dispatch) {
+            // Revert tasks status so they can be batched with next run
             trackingTaskQueryHelper.updateTasksStatus(
                 status = QueueTaskStatus.PENDING,
                 tasks = pendingTasks,
             )
         }
-        return pendingTasks.takeIf { dispatch }
+        return pendingTasks.takeIf { dispatch } ?: emptyList()
     }
 }

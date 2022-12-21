@@ -28,7 +28,7 @@ import io.ktor.serialization.kotlinx.*
  */
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 class KMMComponent(
-    private val staticComponent: KMMStaticComponent = KMMStaticComponent(),
+    internal val staticComponent: KMMStaticComponent = KMMStaticComponent(),
     val sdkComponent: SDKComponent,
 ) : DIGraph() {
     constructor(sdkComponent: SDKComponent) : this(
@@ -101,14 +101,6 @@ class KMMComponent(
                 workspace = sdkComponent.customerIOConfig.workspace,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 trackingHttpClient = trackingHttpClient,
-            )
-        }
-
-    internal val queueTimer: QueueTimer
-        get() = getNewInstance {
-            getQueueTimer(
-                logger = staticComponent.logger,
-                jobExecutor = staticComponent.jobExecutor,
             )
         }
 

@@ -11,6 +11,7 @@ import io.customer.shared.tracking.model.Activity
 import io.customer.shared.tracking.model.Task
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.Logger
+import io.customer.shared.util.nowSeconds
 import io.customer.shared.work.JobDispatcher
 import io.customer.shared.work.JobExecutor
 import io.customer.shared.work.runOnBackground
@@ -83,7 +84,7 @@ internal class BackgroundQueueImpl(
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.IdentifyProfile(
-            timestamp = dateTimeUtil.nowEpochSeconds,
+            timestamp = dateTimeUtil.nowSeconds,
             attributes = attributes,
         ),
         listener = listener,
@@ -99,17 +100,17 @@ internal class BackgroundQueueImpl(
         profileIdentifier = profileIdentifier,
         activity = when (trackingType) {
             TrackingType.EVENT -> Activity.Event(
-                timestamp = dateTimeUtil.nowEpochSeconds,
+                timestamp = dateTimeUtil.nowSeconds,
                 attributes = attributes,
                 name = name,
             )
             TrackingType.PAGE -> Activity.Page(
-                timestamp = dateTimeUtil.nowEpochSeconds,
+                timestamp = dateTimeUtil.nowSeconds,
                 attributes = attributes,
                 name = name,
             )
             TrackingType.SCREEN -> Activity.Screen(
-                timestamp = dateTimeUtil.nowEpochSeconds,
+                timestamp = dateTimeUtil.nowSeconds,
                 attributes = attributes,
                 name = name,
             )
@@ -124,7 +125,7 @@ internal class BackgroundQueueImpl(
     ) = addToQueue(
         profileIdentifier = profileIdentifier,
         activity = Activity.AddDevice(
-            timestamp = dateTimeUtil.nowEpochSeconds,
+            timestamp = dateTimeUtil.nowSeconds,
             device = device.copy(
                 platform = platform.name,
             ),
@@ -158,7 +159,7 @@ internal class BackgroundQueueImpl(
             metricEvent = event,
             deliveryId = deliveryId,
             deviceToken = deviceToken,
-            timestamp = dateTimeUtil.nowEpochSeconds,
+            timestamp = dateTimeUtil.nowSeconds,
         ),
         listener = listener,
     )
@@ -173,7 +174,7 @@ internal class BackgroundQueueImpl(
             metricEvent = event,
             deliveryId = deliveryId,
             deviceToken = null,
-            timestamp = dateTimeUtil.nowEpochSeconds,
+            timestamp = dateTimeUtil.nowSeconds,
         ),
         listener = listener,
     )

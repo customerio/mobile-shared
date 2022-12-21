@@ -1,31 +1,32 @@
 package io.customer.shared.tracking.queue
 
 import android.os.CountDownTimer
+import io.customer.shared.di.KMMComponent
+import io.customer.shared.extensions.random
 import io.customer.shared.util.Logger
 import io.customer.shared.work.JobDispatcher
 import io.customer.shared.work.JobExecutor
 import io.customer.shared.work.TimeUnit
 import io.customer.shared.work.runOnMain
 
-internal actual fun getQueueTimer(
-    logger: Logger,
-    jobExecutor: JobExecutor,
-): QueueTimer = AndroidQueueTimer(
-    logger = logger,
-    jobExecutor = jobExecutor,
-)
+internal actual val KMMComponent.queueTimer: Timer
+    get() = AndroidTimer(
+        logger = staticComponent.logger,
+        jobExecutor = staticComponent.jobExecutor,
+    )
 
 /**
- * [QueueTimer] implementation that uses Android [CountDownTimer] to run timer countdowns.
+ * [Timer] implementation that uses Android [CountDownTimer] to run timer countdown.
  */
-private class AndroidQueueTimer(
+private class AndroidTimer(
     private val logger: Logger,
     override val jobExecutor: JobExecutor,
-) : QueueTimer, JobDispatcher {
+) : Timer, JobDispatcher {
     @Volatile
     private var countdownTimer: CountDownTimer? = null
     private val timerAlreadyScheduled: Boolean
         get() = countdownTimer != null
+    private val instanceIdentifier = String.random
 
     override fun onCoroutineFailed(exception: Throwable) {
         countdownTimer = null
@@ -34,7 +35,7 @@ private class AndroidQueueTimer(
 
     override fun schedule(cancelPrevious: Boolean, duration: TimeUnit.Seconds, block: () -> Unit) {
         synchronized(this) {
-            if (!force && timerAlreadyScheduled) {
+            if (!cancelPrevious && timerAlreadyScheduled) {
                 log("already scheduled to run. Skipping request.")
             }
             scheduleAndCancelPrevious(duration = duration, block = block)
@@ -97,6 +98,6 @@ private class AndroidQueueTimer(
     }
 
     private fun log(message: String) {
-        logger.debug("QueueTimer $message")
+        logger.debug("Timer $instanceIdentifier $message")
     }
 }

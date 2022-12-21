@@ -32,7 +32,7 @@ internal class ConsoleLogger : Logger {
     override var logLevel: LogLevel = logLevelDefault
 
     override fun fatal(message: String, exception: Throwable?) {
-        error(message)
+        writeLogMessage(LogLevel.FATAL, message)
         if (logLevel == LogLevel.DEBUG) exception?.printStackTrace()
     }
 

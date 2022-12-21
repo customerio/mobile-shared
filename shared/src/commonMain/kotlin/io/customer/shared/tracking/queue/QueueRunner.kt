@@ -6,11 +6,11 @@ import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.api.*
 import io.customer.shared.tracking.api.model.*
 import io.customer.shared.tracking.constant.QueueTaskStatus
-import io.customer.shared.tracking.model.Activity
 import io.customer.shared.tracking.model.Task
 import io.customer.shared.tracking.model.TaskResponse
 import io.customer.shared.util.JsonAdapter
 import io.customer.shared.util.Logger
+import io.customer.shared.util.fromJSON
 
 /**
  * Class responsible for sending tasks to server by communicating with network layer and updating
@@ -46,15 +46,12 @@ internal class QueueRunnerImpl(
 
     @Throws(Exception::class)
     private suspend fun processBatchTasks(pendingTasks: List<TrackingTask>): BatchTrackingResponse? {
-        val activities = pendingTasks.map { task ->
-            jsonAdapter.fromJSON(Activity::class, task.activityJson)
-        }
         val result = trackingHttpClient.track(
-            tasks = activities.mapIndexed { index, activity ->
+            tasks = pendingTasks.map { task ->
                 Task(
                     identityType = workspace.identityType,
-                    profileIdentifier = pendingTasks[index].identity,
-                    activity = activity,
+                    profileIdentifier = task.identity,
+                    activity = jsonAdapter.fromJSON(task.activityJson),
                 )
             },
         )

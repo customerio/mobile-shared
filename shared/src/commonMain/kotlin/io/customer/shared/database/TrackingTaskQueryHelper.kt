@@ -6,10 +6,7 @@ import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.constant.Priority
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.tracking.model.*
-import io.customer.shared.util.DatabaseUtil
-import io.customer.shared.util.DateTimeUtil
-import io.customer.shared.util.JsonAdapter
-import io.customer.shared.util.Logger
+import io.customer.shared.util.*
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
@@ -79,7 +76,7 @@ internal class TrackingTaskQueryHelperImpl(
         val currentTime = dateTimeUtil.now
         val activity = task.activity
 
-        val json = jsonAdapter.toJSON(kClazz = Activity::class, content = activity)
+        val json = jsonAdapter.toJSON(content = activity)
         trackingTaskDAO.insertOrReplaceTask(
             uuid = databaseUtil.generateUUID(),
             siteId = workspace.siteId,
