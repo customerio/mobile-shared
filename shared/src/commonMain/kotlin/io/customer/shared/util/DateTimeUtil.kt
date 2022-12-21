@@ -5,8 +5,8 @@ import kotlinx.datetime.Instant
 
 internal interface DateTimeUtil {
     val now: Instant
-    val nowEpochSeconds: Long
-    val nowEpochMilliseconds: Long
+    val nowSeconds: Long
+    val nowMilliseconds: Long
 
     fun toEpochSeconds(time: Instant): Long
     fun toEpochMilliseconds(time: Instant): Long

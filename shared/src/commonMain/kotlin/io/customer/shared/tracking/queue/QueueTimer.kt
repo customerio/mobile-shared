@@ -13,7 +13,7 @@ internal expect fun getQueueTimer(
  * Wrapper around timer that gives us the ability to provide OS based timers and mocked timers in
  * tests to make them run faster.
  */
-internal interface QueueTimer {
+internal interface Timer {
     /**
      * Schedules a new timer and call given block after it has been completed.
      *

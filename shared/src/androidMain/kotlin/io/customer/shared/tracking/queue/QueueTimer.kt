@@ -32,7 +32,7 @@ private class AndroidQueueTimer(
         logger.error(message = "Timer failed with error ${exception.message}")
     }
 
-    override fun schedule(force: Boolean, duration: TimeUnit.Seconds, block: () -> Unit) {
+    override fun schedule(cancelPrevious: Boolean, duration: TimeUnit.Seconds, block: () -> Unit) {
         synchronized(this) {
             if (!force && timerAlreadyScheduled) {
                 log("already scheduled to run. Skipping request.")
