@@ -3,13 +3,14 @@ package io.customer.shared.tracking.queue
 import io.customer.shared.database.TrackingTask
 import io.customer.shared.database.TrackingTaskQueryHelper
 import io.customer.shared.sdk.config.BackgroundQueueConfig
-import io.customer.shared.tracking.api.*
-import io.customer.shared.tracking.api.model.*
 import io.customer.shared.tracking.constant.Priority
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.util.DateTimeUtil
 import io.customer.shared.util.Logger
-import io.customer.shared.work.*
+import io.customer.shared.work.JobDispatcher
+import io.customer.shared.work.JobExecutor
+import io.customer.shared.work.TimeUnit
+import io.customer.shared.work.runOnBackground
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.datetime.Instant
 import kotlin.time.DurationUnit
@@ -62,13 +63,22 @@ internal class QueueDispatcherImpl(
     }
 
     override suspend fun checkForPendingTasks(source: QueueTriggerSource) {
-        processBatchTasks(isRecursive = false) { getTasksToBatch() }
+        processBatchTasks(isRecursive = false) {
+            val pendingTasks = getTasksToBatch()
+            if (shouldDispatch(tasks = pendingTasks)) return@processBatchTasks pendingTasks
+            else {
+                // Revert tasks status so they can be batched with next run
+                trackingTaskQueryHelper.updateTasksStatus(
+                    status = QueueTaskStatus.PENDING,
+                    tasks = pendingTasks,
+                )
+                return@processBatchTasks emptyList()
+            }
+        }
     }
 
     override suspend fun sendAllPending() {
-        processBatchTasks(isRecursive = true) {
-            trackingTaskQueryHelper.selectAllPendingTasks().getOrNull()
-        }
+        processBatchTasks(isRecursive = true) { getTasksToBatch() }
     }
 
     /**
@@ -78,7 +88,7 @@ internal class QueueDispatcherImpl(
      */
     private fun processBatchTasks(
         isRecursive: Boolean,
-        getTasks: suspend () -> List<TrackingTask>?,
+        getTasks: suspend () -> List<TrackingTask>,
     ) = runOnBackground(
         onFailure = { releaseLock() },
     ) {
@@ -89,9 +99,8 @@ internal class QueueDispatcherImpl(
         kotlin.runCatching {
             do {
                 val pendingTasks = getTasks()
-                val isSuccess: Boolean = if (!pendingTasks.isNullOrEmpty()) {
-                    queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
-                } else false
+                val isSuccess: Boolean = if (pendingTasks.isEmpty()) false
+                else queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
             } while (isRecursive && isSuccess)
         }.onFailure { ex ->
             logger.error("Validation for pending tasks failed with error: ${ex.message}")
@@ -101,6 +110,34 @@ internal class QueueDispatcherImpl(
             duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
         ) { runOnBackground { checkForPendingTasks(QueueTriggerSource.TIMER) } }
         releaseLock()
+    }
+
+    /**
+     * Returns task eligible to batch and update their status to [QueueTaskStatus.QUEUED]. It is
+     * callers responsibility to update next status as needed.
+     *
+     * @return list of tasks to batch, empty if no tasks available.
+     */
+    private suspend fun getTasksToBatch(): List<TrackingTask> {
+        return trackingTaskQueryHelper.selectAllPendingTasks().getOrNull() ?: emptyList()
+    }
+
+    /**
+     * Determines whether the provided tasks batch should be dispatched immediately or can wait.
+     *
+     * @param tasks to be evaluated.
+     * @return true if the tasks should be dispatched immediately, false otherwise.
+     */
+    private fun shouldDispatch(tasks: List<TrackingTask>): Boolean {
+        var dispatch = false
+        var pendingTasksCount = 0
+        val currentTime = dateTimeUtil.now
+        tasks.forEach { task ->
+            dispatch = dispatch || shouldSendImmediately(task = task, timestamp = currentTime)
+            pendingTasksCount += if (shouldCountInBatchTrigger(task = task)) 1 else 0
+        }
+        dispatch = dispatch || pendingTasksCount >= backgroundQueueConfig.batchDelayMinTasks
+        return dispatch
     }
 
     /**
@@ -140,36 +177,5 @@ internal class QueueDispatcherImpl(
      */
     private fun shouldCountInBatchTrigger(task: TrackingTask): Boolean {
         return task.retryCount <= 0 || task.statusCode == null
-    }
-
-    /**
-     * Returns task eligible to batch and update their status to [QueueTaskStatus.QUEUED]. It is
-     * callers responsibility to update next status accordingly.
-     *
-     * @return list of tasks to batch, empty if no tasks available.
-     */
-    @Throws(Exception::class)
-    private suspend fun getTasksToBatch(): List<TrackingTask> {
-        val pendingTasks = trackingTaskQueryHelper.selectAllPendingTasks().getOrNull()
-        if (pendingTasks.isNullOrEmpty()) return emptyList()
-
-        var dispatch = false
-        var pendingTasksCount = 0
-        val currentTime = dateTimeUtil.now
-        pendingTasks.forEach { task ->
-            dispatch = dispatch || shouldSendImmediately(task = task, timestamp = currentTime)
-            pendingTasksCount += if (shouldCountInBatchTrigger(task = task)) 1 else 0
-        }
-        dispatch = dispatch || pendingTasksCount >= backgroundQueueConfig.batchDelayMinTasks
-        logger.debug("Total tasks checked: ${pendingTasks.size}, batching :$dispatch")
-
-        if (!dispatch) {
-            // Revert tasks status so they can be batched with next run
-            trackingTaskQueryHelper.updateTasksStatus(
-                status = QueueTaskStatus.PENDING,
-                tasks = pendingTasks,
-            )
-        }
-        return pendingTasks.takeIf { dispatch } ?: emptyList()
     }
 }
