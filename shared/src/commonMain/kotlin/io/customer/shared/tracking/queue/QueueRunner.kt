@@ -27,25 +27,33 @@ internal class QueueRunnerImpl(
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val trackingHttpClient: TrackingHttpClient,
 ) : QueueRunner {
-    override suspend fun runQueueForTasks(pendingTasks: List<TrackingTask>): Result<Boolean> {
-        return kotlin.runCatching {
-            trackingTaskQueryHelper.updateTasksStatus(
-                status = QueueTaskStatus.SENDING,
-                tasks = pendingTasks,
-            )
-            val response = processBatchTasks(pendingTasks = pendingTasks)
-            return@runCatching response != null && !response.isServerUnavailable
-        }.onFailure { ex ->
-            logger.error("Failed to run queue for ${pendingTasks.size} tasks with error: ${ex.message}")
+    override suspend fun runQueueForTasks(
+        pendingTasks: List<TrackingTask>,
+    ): Result<Boolean> = kotlin.runCatching {
+        trackingTaskQueryHelper.updateTasksStatus(
+            status = QueueTaskStatus.SENDING,
+            tasks = pendingTasks,
+        )
+
+        val batchResult = processBatchTasks(pendingTasks = pendingTasks)
+        val batchResponse = batchResult.getOrNull()
+        if (batchResponse != null) {
+            val (response, tasksResponse) = batchResponse
+            trackingTaskQueryHelper.updateTasksStatusFromResponse(responses = tasksResponse)
+            return@runCatching !response.isServerUnavailable
+        } else {
+            logger.error("Failed to run queue for ${pendingTasks.size} tasks with error: ${batchResult.exceptionOrNull()?.message}")
             trackingTaskQueryHelper.updateTasksStatus(
                 status = QueueTaskStatus.FAILED,
                 tasks = pendingTasks,
             )
+            return@runCatching false
         }
     }
 
-    @Throws(Exception::class)
-    private suspend fun processBatchTasks(pendingTasks: List<TrackingTask>): BatchTrackingResponse? {
+    private suspend fun processBatchTasks(
+        pendingTasks: List<TrackingTask>,
+    ): Result<Pair<BatchTrackingResponse, List<TaskResponse>>> = kotlin.runCatching {
         val result = trackingHttpClient.track(
             tasks = pendingTasks.map { task ->
                 Task(
@@ -55,10 +63,9 @@ internal class QueueRunnerImpl(
                 )
             },
         )
-        val response = result.getOrNull()
+        val response = result.getOrThrow()
         val tasksResponse = processBatchResponse(pendingTasks = pendingTasks, response = response)
-        trackingTaskQueryHelper.updateTasksStatusFromResponse(responses = tasksResponse)
-        return response
+        return@runCatching response to tasksResponse
     }
 
     @Throws(Exception::class)
