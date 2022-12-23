@@ -2,6 +2,8 @@ package io.customer.shared.di
 
 import io.customer.shared.sdk.config.CustomerIOConfig
 import io.customer.shared.util.*
+import io.customer.shared.work.JobExecutor
+import io.customer.shared.work.JobExecutorImpl
 
 /**
  * Static component dependency graph to satisfy independent dependencies from single place. All
@@ -28,6 +30,14 @@ class KMMStaticComponent : DIGraph() {
 
     internal val databaseUtil: DatabaseUtil
         get() = getSingletonInstance { getDatabaseUtil() }
+
+    internal val jobExecutor: JobExecutor
+        get() = getNewInstance {
+            JobExecutorImpl(
+                logger = logger,
+                dispatcher = dispatcher,
+            )
+        }
 }
 
 /**

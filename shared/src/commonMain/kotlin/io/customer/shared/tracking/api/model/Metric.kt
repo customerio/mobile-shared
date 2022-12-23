@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 @kotlinx.serialization.Serializable
 internal data class Metric(
     @SerialName("delivery_id") val deliveryID: String,
-    @SerialName("device_id") val deviceToken: String,
+    @SerialName("device_id") val deviceToken: String?,
     @SerialName("event") val event: MetricEvent,
     @SerialName("timestamp") val timestamp: Long,
 )

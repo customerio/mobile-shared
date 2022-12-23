@@ -34,6 +34,12 @@ interface JsonAdapter {
     fun <T : Any> fromJSONOrNull(kClazz: KClass<T>, json: String): T?
 }
 
+@Throws(Exception::class)
+inline fun <reified T : Any> JsonAdapter.toJSON(content: T): String = toJSON(T::class, content)
+
+@Throws(Exception::class)
+inline fun <reified T : Any> JsonAdapter.fromJSON(json: String): T = fromJSON(T::class, json)
+
 @OptIn(InternalSerializationApi::class, ExperimentalSerializationApi::class)
 internal class JsonAdapterImpl(
     private val logger: Logger,
