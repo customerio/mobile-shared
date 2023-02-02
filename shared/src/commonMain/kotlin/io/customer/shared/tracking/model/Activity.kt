@@ -97,9 +97,18 @@ internal sealed interface Activity {
         override val modelVersion: Long = 1
     }
 
+    /**
+     * Since the type for all metric events is same, we cannot add multiple sealed classes with
+     * same SerialName in Kotlin serialization for single class as the name is parsed to `type`
+     * and used as identifier when parsing.
+     *
+     * Therefore, primary constructor visibility is set to limited. Use relevant companion methods
+     * as named constructors to create desired Metric object for ease and clarity.
+     */
+    @Suppress("DataClassPrivateConstructor")
     @kotlinx.serialization.Serializable
     @SerialName(ActivityType.METRIC)
-    data class Metric(
+    data class Metric private constructor(
         val metricEvent: MetricEvent,
         val deliveryId: String,
         val deviceToken: String?,
@@ -107,5 +116,40 @@ internal sealed interface Activity {
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
+
+        companion object {
+            /**
+             * Named construction for in-app metric events.
+             */
+            fun inApp(
+                metricEvent: MetricEvent,
+                deliveryId: String,
+                timestamp: Long,
+                attributes: CustomAttributes = emptyMap(),
+            ) = Metric(
+                metricEvent = metricEvent,
+                deliveryId = deliveryId,
+                deviceToken = null,
+                timestamp = timestamp,
+                attributes = attributes,
+            )
+
+            /**
+             * Named construction for push metric events.
+             */
+            fun push(
+                metricEvent: MetricEvent,
+                deliveryId: String,
+                deviceToken: String?,
+                timestamp: Long,
+                attributes: CustomAttributes = emptyMap(),
+            ) = Metric(
+                metricEvent = metricEvent,
+                deliveryId = deliveryId,
+                deviceToken = deviceToken,
+                timestamp = timestamp,
+                attributes = attributes,
+            )
+        }
     }
 }

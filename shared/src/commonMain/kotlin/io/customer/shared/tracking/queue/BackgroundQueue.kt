@@ -155,7 +155,7 @@ internal class BackgroundQueueImpl(
         listener: TaskResultListener<Unit>?,
     ) = addToQueue(
         profileIdentifier = null,
-        activity = Activity.Metric(
+        activity = Activity.Metric.push(
             metricEvent = event,
             deliveryId = deliveryId,
             deviceToken = deviceToken,
@@ -170,10 +170,9 @@ internal class BackgroundQueueImpl(
         listener: TaskResultListener<Unit>?,
     ) = addToQueue(
         profileIdentifier = null,
-        activity = Activity.Metric(
+        activity = Activity.Metric.inApp(
             metricEvent = event,
             deliveryId = deliveryId,
-            deviceToken = null,
             timestamp = dateTimeUtil.nowSeconds,
         ),
         listener = listener,

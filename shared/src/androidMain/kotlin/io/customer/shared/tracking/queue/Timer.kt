@@ -26,6 +26,7 @@ private class AndroidTimer(
     private var countdownTimer: CountDownTimer? = null
     private val timerAlreadyScheduled: Boolean
         get() = countdownTimer != null
+    // Timer identifier adds value in logs and helps identifying different timer instances
     private val instanceIdentifier = String.random
 
     override fun onCoroutineFailed(exception: Throwable) {
