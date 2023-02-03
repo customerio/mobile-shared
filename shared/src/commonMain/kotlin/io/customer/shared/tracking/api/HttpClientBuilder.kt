@@ -57,11 +57,7 @@ internal class HttpClientBuilderImpl(
         }
 
     override val baseURL: String
-        get() {
-            // TODO: Fix this when we move out of devbox testing
-            return "https://track-v2.devzilla.customerio.dev/"
-            // return networkConfig.trackingApiUrl ?: workspace.region.trackingURL
-        }
+        get() = networkConfig.trackingApiUrl ?: workspace.region.trackingURL
 
     override val headers: Map<String, String>
         get() = mapOf(
