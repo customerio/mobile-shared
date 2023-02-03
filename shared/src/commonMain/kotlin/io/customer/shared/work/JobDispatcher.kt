@@ -21,19 +21,15 @@ internal interface JobDispatcher {
 }
 
 internal fun JobDispatcher.runOnBackground(
-    onFailure: (Throwable) -> Unit = {},
     block: suspend CoroutineScope.() -> Unit,
 ): Job = jobExecutor.launchOnBackground(
     onError = { ex -> onCoroutineFailed((ex)) },
-    onFailure = onFailure,
     block = block,
 )
 
 internal fun JobDispatcher.runOnMain(
-    onFailure: (Throwable) -> Unit = {},
     block: CoroutineScope.() -> Unit,
 ): Job = jobExecutor.launchOnMain(
     onError = { ex -> onCoroutineFailed((ex)) },
-    onFailure = onFailure,
     block = block,
 )

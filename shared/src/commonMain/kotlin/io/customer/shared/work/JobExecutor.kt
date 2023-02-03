@@ -17,13 +17,11 @@ internal interface JobExecutor {
      * Launches the given block on background dispatcher.
      *
      * @param onError called when coroutine crashes.
-     * @param onFailure called when there is an exception in the given block.
      * @param block the coroutine code which will be invoked in the context of the provided scope.
      * @return reference to the coroutine Job.
      */
     fun launchOnBackground(
         onError: (Throwable) -> Unit = {},
-        onFailure: (Throwable) -> Unit = {},
         block: suspend CoroutineScope.() -> Unit,
     ): Job
 
@@ -31,13 +29,11 @@ internal interface JobExecutor {
      * Launches the given block on background dispatcher.
      *
      * @param onError called when coroutine crashes.
-     * @param onFailure called when there is an exception in the given block.
      * @param block suspended block to run the code on background.
      * @return reference to the coroutine Job.
      */
     fun launchOnMain(
         onError: (Throwable) -> Unit = {},
-        onFailure: (Throwable) -> Unit = {},
         block: CoroutineScope.() -> Unit,
     ): Job
 }
@@ -58,7 +54,6 @@ internal class JobExecutorImpl(
 
     override fun launchOnBackground(
         onError: (Throwable) -> Unit,
-        onFailure: (Throwable) -> Unit,
         block: suspend CoroutineScope.() -> Unit,
     ): Job = backgroundScope.launch(
         context = CoroutineExceptionHandler { _, exception ->
@@ -69,22 +64,11 @@ internal class JobExecutorImpl(
             )
             onError(exception)
         },
-        block = {
-            kotlin.runCatching {
-                block()
-            }.onFailure { ex ->
-                logger.fatal(
-                    message = "Background coroutine execution failed with error: ${ex.message}",
-                    exception = ex,
-                )
-                onFailure(ex)
-            }
-        },
+        block = block,
     )
 
     override fun launchOnMain(
         onError: (Throwable) -> Unit,
-        onFailure: (Throwable) -> Unit,
         block: CoroutineScope.() -> Unit,
     ): Job = mainScope.launch(
         context = CoroutineExceptionHandler { _, exception ->
@@ -95,17 +79,6 @@ internal class JobExecutorImpl(
             )
             onError(exception)
         },
-        block = {
-            kotlin.runCatching {
-                block()
-            }.onFailure { ex ->
-                logger.fatal(
-                    message = "Main coroutine execution failed with error: ${ex.message}",
-                    exception = ex,
-                )
-                onFailure(ex)
-                ex.printStackTrace()
-            }
-        },
+        block = block,
     )
 }

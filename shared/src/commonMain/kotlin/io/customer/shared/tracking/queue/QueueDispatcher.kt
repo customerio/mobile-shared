@@ -89,27 +89,27 @@ internal class QueueDispatcherImpl(
     private fun processBatchTasks(
         isRecursive: Boolean,
         getTasks: suspend () -> List<TrackingTask>,
-    ) = runOnBackground(
-        onFailure = { releaseLock() },
-    ) {
-        if (mutex.isLocked) return@runOnBackground
-
-        acquireLock()
-        queueTimer.cancel()
+    ) = runOnBackground {
         kotlin.runCatching {
-            do {
-                val pendingTasks = getTasks()
-                val isSuccess: Boolean = if (pendingTasks.isEmpty()) false
-                else queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
-            } while (isRecursive && isSuccess)
-        }.onFailure { ex ->
-            logger.error("Validation for pending tasks failed with error: ${ex.message}")
-        }
-        queueTimer.schedule(
-            cancelPrevious = true,
-            duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
-        ) { runOnBackground { checkForPendingTasks(QueueTriggerSource.TIMER) } }
-        releaseLock()
+            if (mutex.isLocked) return@runOnBackground
+
+            acquireLock()
+            queueTimer.cancel()
+            kotlin.runCatching {
+                do {
+                    val pendingTasks = getTasks()
+                    val isSuccess: Boolean = if (pendingTasks.isEmpty()) false
+                    else queueRunner.runQueueForTasks(pendingTasks).getOrNull() == true
+                } while (isRecursive && isSuccess)
+            }.onFailure { ex ->
+                logger.error("Validation for pending tasks failed with error: ${ex.message}")
+            }
+            queueTimer.schedule(
+                cancelPrevious = true,
+                duration = TimeUnit.Seconds(backgroundQueueConfig.batchDelayMaxDelayInSeconds.toDouble()),
+            ) { runOnBackground { checkForPendingTasks(QueueTriggerSource.TIMER) } }
+            releaseLock()
+        }.onFailure { releaseLock() }
     }
 
     /**

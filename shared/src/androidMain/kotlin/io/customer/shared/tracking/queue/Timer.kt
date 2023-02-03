@@ -26,6 +26,7 @@ private class AndroidTimer(
     private var countdownTimer: CountDownTimer? = null
     private val timerAlreadyScheduled: Boolean
         get() = countdownTimer != null
+
     // Timer identifier adds value in logs and helps identifying different timer instances
     private val instanceIdentifier = String.random
 
@@ -49,30 +50,30 @@ private class AndroidTimer(
         // Because we are starting a new coroutine, there is a chance that there could be a delay
         // in starting the timer. This is OK because this function is designed to be async anyway
         // so the logic from the caller has not changed.
-        runOnMain(
-            onFailure = { ex ->
+        runOnMain {
+            kotlin.runCatching {
+                synchronized(this) {
+                    unsafeCancel()
+
+                    log("making a timer for $duration")
+
+                    val millisInFuture = duration.toMillis()
+                    // Since we only need to listen at completion, using the same duration for
+                    // countdown interval
+                    countdownTimer = object : CountDownTimer(millisInFuture, millisInFuture) {
+                        override fun onTick(millisUntilFinished: Long) {}
+                        override fun onFinish() {
+                            // reset timer before calling block as block might be synchronous and if it
+                            // tries to start a new timer, it will not succeed because we need to reset
+                            // the timer.
+                            timerDone()
+                            block()
+                        }
+                    }.start()
+                }
+            }.onFailure { ex ->
                 unsafeCancel()
                 logger.error(message = "Timer cannot be started, reason: ${ex.message}")
-            },
-        ) {
-            synchronized(this) {
-                unsafeCancel()
-
-                log("making a timer for $duration")
-
-                val millisInFuture = duration.toMillis()
-                // Since we only need to listen at completion, using the same duration for
-                // countdown interval
-                countdownTimer = object : CountDownTimer(millisInFuture, millisInFuture) {
-                    override fun onTick(millisUntilFinished: Long) {}
-                    override fun onFinish() {
-                        // reset timer before calling block as block might be synchronous and if it
-                        // tries to start a new timer, it will not succeed because we need to reset
-                        // the timer.
-                        timerDone()
-                        block()
-                    }
-                }.start()
             }
         }
     }
