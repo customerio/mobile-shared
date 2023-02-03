@@ -9,7 +9,7 @@ import kotlinx.datetime.Instant;
 CREATE TABLE IF NOT EXISTS trackingTask (
   uuid TEXT NOT NULL,
   siteId TEXT NOT NULL,
-  type TEXT NOT NULL,
+  action TEXT NOT NULL,
   createdAt INTEGER AS Instant NOT NULL,
   updatedAt INTEGER AS Instant NOT NULL,
   identity TEXT,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS trackingTask (
 -- All updatation queries must include [updatedAt]
 
 insertOrReplaceTask:
-INSERT OR REPLACE INTO trackingTask (uuid, siteId, type, createdAt, updatedAt, identity, identityType, activityJson, activityModelVersion, queueTaskStatus, priority)
+INSERT OR REPLACE INTO trackingTask (uuid, siteId, action, createdAt, updatedAt, identity, identityType, activityJson, activityModelVersion, queueTaskStatus, priority)
 VALUES (?, ?, ?,?, ?,?,  ?,?, ?,?, ?);
 
 updateAllAnonymousTasks:
@@ -58,6 +58,6 @@ WHERE queueTaskStatus IN :status AND (identity IS NOT NULL OR identity == '') AN
 ORDER BY priority DESC, createdAt ASC
 LIMIT :limit;
 
-selectByType:
+selectByAction:
 SELECT * FROM trackingTask
-WHERE type == :type AND siteId == :siteId;
+WHERE action == :action AND siteId == :siteId;

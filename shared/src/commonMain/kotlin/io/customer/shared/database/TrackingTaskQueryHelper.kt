@@ -80,7 +80,7 @@ internal class TrackingTaskQueryHelperImpl(
         trackingTaskDAO.insertOrReplaceTask(
             uuid = databaseUtil.generateUUID(),
             siteId = workspace.siteId,
-            type = activity.type,
+            action = activity.action,
             createdAt = currentTime,
             updatedAt = currentTime,
             identity = task.profileIdentifier,
@@ -90,7 +90,7 @@ internal class TrackingTaskQueryHelperImpl(
             queueTaskStatus = QueueTaskStatus.PENDING,
             priority = Priority.DEFAULT,
         )
-        logger.debug("Adding task ${activity.type} to queue successful")
+        logger.debug("Adding task ${activity.action} to queue successful")
 
         if (activity is Activity.IdentifyProfile) {
             trackingTaskDAO.updateAllAnonymousTasks(
