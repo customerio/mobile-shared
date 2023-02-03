@@ -102,7 +102,7 @@ internal sealed interface Activity {
      * same SerialName in Kotlin serialization for single class as the name is parsed to `type`
      * and used as identifier when parsing.
      *
-     * Therefore, primary constructor visibility is set to limited. Use relevant companion methods
+     * Therefore, primary constructor visibility is set to private. Use relevant companion methods
      * as named constructors to create desired Metric object for ease and clarity.
      */
     @Suppress("DataClassPrivateConstructor")

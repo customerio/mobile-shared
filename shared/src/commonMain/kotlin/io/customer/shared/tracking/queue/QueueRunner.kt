@@ -73,14 +73,8 @@ internal class QueueRunnerImpl(
         pendingTasks: List<TrackingTask>,
         response: BatchTrackingResponse?,
     ): List<TaskResponse> {
-        if (response == null) {
-            return pendingTasks.mapIndexed { _, task ->
-                TaskResponse(uuid = task.uuid, taskStatus = QueueTaskStatus.FAILED)
-            }
-        }
-
-        val responseStatusCode = response.statusCode.toLong()
-        if (response.isSuccessful) {
+        val responseStatusCode = response?.statusCode?.toLong()
+        if (response?.isSuccessful == true) {
             val errorMap = response.errors.associateBy { it.batchIndex ?: 0 }
             return pendingTasks.mapIndexed { index, task ->
                 val trackingError = errorMap[index]
