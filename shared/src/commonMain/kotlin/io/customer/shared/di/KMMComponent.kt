@@ -48,6 +48,7 @@ class KMMComponent(
                 workspace = sdkComponent.customerIOConfig.workspace,
                 platform = sdkComponent.platform,
                 jobExecutor = staticComponent.jobExecutor,
+                dispatcher = staticComponent.dispatcher,
                 trackingTaskQueryHelper = trackingTaskQueryHelper,
                 queueDispatcher = queueDispatcher,
             )

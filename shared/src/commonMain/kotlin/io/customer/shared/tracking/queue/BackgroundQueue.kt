@@ -10,13 +10,14 @@ import io.customer.shared.tracking.constant.TrackingType
 import io.customer.shared.tracking.model.Activity
 import io.customer.shared.tracking.model.Task
 import io.customer.shared.util.DateTimeUtil
+import io.customer.shared.util.Dispatcher
 import io.customer.shared.util.Logger
 import io.customer.shared.util.nowSeconds
 import io.customer.shared.work.JobDispatcher
 import io.customer.shared.work.JobExecutor
 import io.customer.shared.work.runOnBackground
-import io.customer.shared.work.runOnMain
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 
 /**
  * Background queue is responsible for queuing tasks to trigger when needed. It works asynchronously
@@ -74,6 +75,7 @@ internal class BackgroundQueueImpl(
     private val workspace: Workspace,
     private val platform: Platform,
     override val jobExecutor: JobExecutor,
+    private val dispatcher: Dispatcher,
     private val trackingTaskQueryHelper: TrackingTaskQueryHelper,
     private val queueDispatcher: QueueDispatcher,
 ) : BackgroundQueue, JobDispatcher {
@@ -191,7 +193,7 @@ internal class BackgroundQueueImpl(
             ),
         )
         queueDispatcher.checkForPendingTasks(source = QueueTriggerSource.DATABASE)
-        listener?.run { runOnMain { onComplete(result) } }
+        listener?.run { withContext(dispatcher.main()) { onComplete(result) } }
     }
 
     override fun sendAllPending() = runOnBackground {
