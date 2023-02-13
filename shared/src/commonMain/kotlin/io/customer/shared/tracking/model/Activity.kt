@@ -10,7 +10,7 @@ package io.customer.shared.tracking.model
 
 import io.customer.shared.common.CustomAttributes
 import io.customer.shared.tracking.api.model.Device
-import io.customer.shared.tracking.constant.ActivityType
+import io.customer.shared.tracking.constant.Action
 import io.customer.shared.tracking.constant.MetricEvent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.UseContextualSerialization
@@ -39,7 +39,7 @@ internal sealed interface Activity {
     val modelVersion: Long
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.ADD_DEVICE)
+    @SerialName(Action.ADD_DEVICE)
     data class AddDevice(
         override val timestamp: Long,
         @SerialName("device") val device: Device,
@@ -49,7 +49,7 @@ internal sealed interface Activity {
     }
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.DELETE_DEVICE)
+    @SerialName(Action.DELETE_DEVICE)
     data class DeleteDevice(
         val device: Device,
     ) : Activity {
@@ -59,7 +59,7 @@ internal sealed interface Activity {
     }
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.IDENTIFY)
+    @SerialName(Action.IDENTIFY)
     data class IdentifyProfile(
         override val timestamp: Long,
         override val attributes: CustomAttributes = emptyMap(),
@@ -68,7 +68,7 @@ internal sealed interface Activity {
     }
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.EVENT)
+    @SerialName(Action.EVENT)
     data class Event(
         val name: String,
         override val timestamp: Long,
@@ -78,7 +78,7 @@ internal sealed interface Activity {
     }
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.PAGE)
+    @SerialName(Action.PAGE)
     data class Page(
         val name: String,
         override val timestamp: Long,
@@ -88,7 +88,7 @@ internal sealed interface Activity {
     }
 
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.SCREEN)
+    @SerialName(Action.SCREEN)
     data class Screen(
         val name: String,
         override val timestamp: Long,
@@ -97,15 +97,59 @@ internal sealed interface Activity {
         override val modelVersion: Long = 1
     }
 
+    /**
+     * Since the type for all metric events is same, we cannot add multiple sealed classes with
+     * same SerialName in Kotlin serialization for single class as the name is parsed to `type`
+     * and used as identifier when parsing.
+     *
+     * Therefore, primary constructor visibility is set to private. Use relevant companion methods
+     * as named constructors to create desired Metric object for ease and clarity.
+     */
+    @Suppress("DataClassPrivateConstructor")
     @kotlinx.serialization.Serializable
-    @SerialName(ActivityType.METRIC)
-    data class Metric(
+    @SerialName(Action.METRIC)
+    data class Metric private constructor(
         val metricEvent: MetricEvent,
         val deliveryId: String,
-        val deviceToken: String,
+        val deviceToken: String?,
         override val timestamp: Long,
         override val attributes: CustomAttributes = emptyMap(),
     ) : Activity {
         override val modelVersion: Long = 1
+
+        companion object {
+            /**
+             * Named construction for in-app metric events.
+             */
+            fun inApp(
+                metricEvent: MetricEvent,
+                deliveryId: String,
+                timestamp: Long,
+                attributes: CustomAttributes = emptyMap(),
+            ) = Metric(
+                metricEvent = metricEvent,
+                deliveryId = deliveryId,
+                deviceToken = null,
+                timestamp = timestamp,
+                attributes = attributes,
+            )
+
+            /**
+             * Named construction for push metric events.
+             */
+            fun push(
+                metricEvent: MetricEvent,
+                deliveryId: String,
+                deviceToken: String?,
+                timestamp: Long,
+                attributes: CustomAttributes = emptyMap(),
+            ) = Metric(
+                metricEvent = metricEvent,
+                deliveryId = deliveryId,
+                deviceToken = deviceToken,
+                timestamp = timestamp,
+                attributes = attributes,
+            )
+        }
     }
 }

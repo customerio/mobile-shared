@@ -6,10 +6,7 @@ import io.customer.shared.sdk.meta.Workspace
 import io.customer.shared.tracking.constant.Priority
 import io.customer.shared.tracking.constant.QueueTaskStatus
 import io.customer.shared.tracking.model.*
-import io.customer.shared.util.DatabaseUtil
-import io.customer.shared.util.DateTimeUtil
-import io.customer.shared.util.JsonAdapter
-import io.customer.shared.util.Logger
+import io.customer.shared.util.*
 
 /**
  * The class works as a bridge for SQL queries. All queries to database should be made using this
@@ -58,18 +55,16 @@ internal class TrackingTaskQueryHelperImpl(
         tasks: List<TrackingTask>,
     ): Result<Unit> {
         val taskIds = tasks.map { task -> task.uuid }
-        val result = kotlin.runCatching {
+        return kotlin.runCatching {
             trackingTaskDAO.updateTasksStatus(
                 updatedAt = dateTimeUtil.now,
                 status = status,
                 ids = taskIds,
                 siteId = workspace.siteId,
             )
-        }
-        result.onFailure { ex ->
+        }.onFailure { ex ->
             logger.error("Unable to update status $status for tasks ${taskIds.joinToString(separator = ",")}. Reason: ${ex.message}")
         }
-        return result
     }
 
     /**
@@ -81,11 +76,11 @@ internal class TrackingTaskQueryHelperImpl(
         val currentTime = dateTimeUtil.now
         val activity = task.activity
 
-        val json = jsonAdapter.toJSON(kClazz = Activity::class, content = activity)
+        val json = jsonAdapter.toJSON(content = activity)
         trackingTaskDAO.insertOrReplaceTask(
             uuid = databaseUtil.generateUUID(),
             siteId = workspace.siteId,
-            type = activity.type,
+            action = activity.action,
             createdAt = currentTime,
             updatedAt = currentTime,
             identity = task.profileIdentifier,
@@ -95,7 +90,7 @@ internal class TrackingTaskQueryHelperImpl(
             queueTaskStatus = QueueTaskStatus.PENDING,
             priority = Priority.DEFAULT,
         )
-        logger.debug("Adding task ${activity.type} to queue successful")
+        logger.debug("Adding task ${activity.action} to queue successful")
 
         if (activity is Activity.IdentifyProfile) {
             trackingTaskDAO.updateAllAnonymousTasks(
@@ -108,7 +103,7 @@ internal class TrackingTaskQueryHelperImpl(
         }
     }
 
-    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction {
+    override suspend fun insertTask(task: Task): Result<Unit> = runInTransaction<Result<Unit>> {
         insertTaskInternal(task = task)
     }.onFailure { ex ->
         logger.error("Unable to add ${task.activity} to queue, skipping task. Reason: ${ex.message}")
@@ -153,7 +148,7 @@ internal class TrackingTaskQueryHelperImpl(
         else Result.failure(exception)
     }
 
-    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction {
+    override suspend fun clearAllExpiredTasks(): Result<Unit> = runInTransaction<Result<Unit>> {
         kotlin.runCatching {
             trackingTaskDAO.clearAllTasksWithStatus(
                 status = listOf(QueueTaskStatus.SENT, QueueTaskStatus.INVALID),

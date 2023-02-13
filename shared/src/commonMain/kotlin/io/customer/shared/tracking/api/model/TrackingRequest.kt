@@ -11,7 +11,7 @@ package io.customer.shared.tracking.api.model
 import io.customer.shared.common.CustomAttributes
 import io.customer.shared.sdk.meta.IdentityType
 import io.customer.shared.tracking.model.Activity
-import io.customer.shared.tracking.model.type
+import io.customer.shared.tracking.model.action
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.UseContextualSerialization
 
@@ -22,7 +22,8 @@ import kotlinx.serialization.UseContextualSerialization
 // of sealed classes with generic parsing
 @kotlinx.serialization.Serializable
 internal class TrackingRequest(
-    @SerialName("type") val type: String,
+    @SerialName("type") val type: TrackingRequestType,
+    @SerialName("action") val action: String,
     @SerialName("timestamp") val timestamp: Long? = null,
     @SerialName("identifiers") val identifiers: CustomAttributes? = null,
     @SerialName("attributes") val attributes: CustomAttributes? = null,
@@ -76,6 +77,18 @@ internal fun Activity.toTrackingRequest(
     )
 }
 
+private val Activity.requestType: TrackingRequestType
+    get() = when (this) {
+        is Activity.AddDevice,
+        is Activity.DeleteDevice,
+        is Activity.IdentifyProfile,
+        is Activity.Event,
+        is Activity.Page,
+        is Activity.Screen,
+        -> TrackingRequestType.PERSON
+        is Activity.Metric -> TrackingRequestType.DELIVERY
+    }
+
 private fun Activity.TrackingRequest(
     identityType: IdentityType,
     profileIdentifier: String,
@@ -90,7 +103,8 @@ private fun Activity.TrackingRequest(
     }
 
     return TrackingRequest(
-        type = type,
+        type = requestType,
+        action = action,
         timestamp = timestamp,
         identifiers = mapOf(profileIdentifierKey to profileIdentifier),
         attributes = attributes,
