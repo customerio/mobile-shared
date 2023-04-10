@@ -2,7 +2,6 @@ package io.customer.shared.util
 
 import io.customer.shared.di.SDKComponent
 import io.customer.shared.serializer.CustomAttributeContextualSerializer
-import io.customer.shared.tracking.api.*
 import io.ktor.http.*
 import io.ktor.serialization.*
 import io.ktor.serialization.kotlinx.*
