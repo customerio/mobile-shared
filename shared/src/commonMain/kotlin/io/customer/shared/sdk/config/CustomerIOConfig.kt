@@ -15,7 +15,6 @@ data class CustomerIOConfig constructor(
     val sdkLogLevel: LogLevel = DefaultValue.LOG_LEVEL,
     val workspace: Workspace,
     val backgroundQueue: BackgroundQueueConfig = BackgroundQueueConfig.default(),
-    val network: NetworkConfig = NetworkConfig.default(),
 ) {
     constructor(workspace: Workspace) : this(
         sdkLogLevel = DefaultValue.LOG_LEVEL,
@@ -27,23 +26,6 @@ data class CustomerIOConfig constructor(
         workspace = workspace,
         backgroundQueue = backgroundQueue,
     )
-
-    constructor(
-        workspace: Workspace,
-        backgroundQueue: BackgroundQueueConfig,
-        network: NetworkConfig,
-    ) : this(
-        sdkLogLevel = DefaultValue.LOG_LEVEL,
-        workspace = workspace,
-        backgroundQueue = backgroundQueue,
-        network = network,
-    )
-
-    /**
-     * Configurations map to hold module level configurations, having a map it makes it easier to
-     * attach them later.
-     */
-    internal val moduleConfig: MutableMap<String, ModuleConfig> = mutableMapOf()
 
     /**
      * Default values make it easier to reuse when providing fallback values in wrapper SDKs or

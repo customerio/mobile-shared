@@ -26,7 +26,7 @@ internal class TrackingTaskQueryHelperImpl(
     private val jsonAdapter: JsonAdapter,
     private val databaseUtil: DatabaseUtil,
     private val workspace: Workspace,
-    private val backgroundQueueConfig: BackgroundQueueConfig,
+    backgroundQueueConfig: BackgroundQueueConfig,
     private val trackingTaskDAO: TrackingTaskQueries,
 ) : TrackingTaskQueryHelper {
     private val selectAllPendingQuery = trackingTaskDAO.selectAllPendingTasks(
