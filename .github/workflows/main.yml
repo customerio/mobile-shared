@@ -4,4 +4,4 @@ on:
 
 jobs:
   call-kmmbridge-publish:
-    uses: touchlab/KMMBridgeGithubWorkflow/.github/workflows/faktorybuildbranches.yml@v0.3
+    uses: touchlab/KMMBridgeGithubWorkflow/.github/workflows/faktorybuildbranches.yml@179644fc5ffb8719c5d8db00e627389d0bfb4ef1 # v0.3
